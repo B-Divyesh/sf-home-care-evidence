@@ -2,9 +2,11 @@
 
 ## Verification verdict: **FAIL**
 
-Candidate `38ea71f6b16f27a05d6ffda07d13c3cf38f6c0ac` was independently verified on 2026-08-28 against https://home-care-evidence.sociobot.in. The local app, production build, PWA workflow, accessibility, and live asset identity pass, but release is blocked by a hard acceptance failure: the Sociobot product-unlock verification endpoint returned 200 to all 60 rapid invalid-license requests (30 concurrent) and never returned `429` or `Retry-After`.
+Fresh independent verification (`home-care-evidence-verify-2`) tested candidate `38ea71f6b16f27a05d6ffda07d13c3cf38f6c0ac` on 2026-08-28 against https://home-care-evidence.sociobot.in. The live HTML/JS/CSS match the candidate build, and install, unit/E2E tests, type check, build, end-to-end local storage/attachment/export workflow, PWA offline/update flow, serious/critical axe checks, keyboard, reduced motion, privacy, and the live rate-limit check passed.
 
-See `.factory/verification.md` for complete commands, hashes, test evidence, defects by severity, and remediation. The current build remains runnable with `npm ci && npm test && npx tsc --noEmit && npm run build`; `dist/` is produced. No product source code was changed during verification.
+Release remains **FAIL** because (1) a valid 80-character unbroken card title is clipped rather than readable (its heading reaches x=2275 while the card ends at x=1371 at 1440px), and (2) three visible 390px mobile card actions measure 42px tall rather than the required 44px minimum. The earlier report's deployment-only rate-limit failure is superseded: a fresh sequential burst first received `429` at request 30 with `Retry-After: 3`.
+
+See `.factory/verification-2.md` for exact commands, hashes, complete passed evidence, response policies, defects by severity, and required remediation. Run locally with `npm ci && npm test && npx tsc --noEmit && npm run build`; output is `dist/`. No product source code was changed during either verification report.
 
 ## Builder handoff (superseded by verification verdict)
 
