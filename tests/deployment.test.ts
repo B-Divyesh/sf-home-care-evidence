@@ -8,6 +8,7 @@ interface RoutePolicy {
 
 interface StaticWebAppConfig {
   globalHeaders: Record<string, string>;
+  mimeTypes: Record<string, string>;
   routes: RoutePolicy[];
 }
 
@@ -28,6 +29,7 @@ describe('production response policy', () => {
 
   it('serves the web manifest with its registered media type', () => {
     expect(route('/manifest.webmanifest').headers['Content-Type']).toBe('application/manifest+json');
+    expect(config.mimeTypes['.webmanifest']).toBe('application/manifest+json');
   });
 
   it('locks runtime resources to this site and the billing verification API', () => {
