@@ -74,3 +74,4 @@ Final generation prompt:
 - License/provenance: original model-generated asset for this product; no third-party source material supplied
 - Source candidate: `assets/src/evidence-station.png`
 - Production exports: responsive WebP files under `public/assets/`
+- Social preview: `public/social-preview.jpg`, a 1200×630 center crop derived from the original generated production illustration; no additional source material

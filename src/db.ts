@@ -1,11 +1,17 @@
 import type { MaintenanceRecord } from './domain';
 
-const DB_NAME = 'home-care-evidence';
+const REAL_DB_NAME = 'home-care-evidence';
+const DEMO_DB_NAME = 'demo:home-care-evidence';
 const STORE = 'records';
+let databaseName = REAL_DB_NAME;
+
+export function useDemoDatabase(enabled: boolean): void {
+  databaseName = enabled ? DEMO_DB_NAME : REAL_DB_NAME;
+}
 
 function openDatabase(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(databaseName, 1);
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains(STORE)) {
         request.result.createObjectStore(STORE, { keyPath: 'id' });

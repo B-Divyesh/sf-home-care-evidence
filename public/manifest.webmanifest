@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Home Care Evidence",
   "short_name": "Care Evidence",
-  "description": "Local, durable maintenance records with proof and next-due dates.",
+  "description": "Keep home repair proof and next due dates together in a local logbook.",
   "start_url": "/?source=installed&v=1",
   "scope": "/",
   "display": "standalone",

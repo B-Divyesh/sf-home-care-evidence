@@ -7,10 +7,11 @@ async function files(directory) {
   return paths.flat();
 }
 
-for (const route of ['privacy', 'terms']) {
+for (const route of ['demo', 'privacy', 'terms']) {
   await mkdir(`dist/${route}`, { recursive: true });
   await cp('dist/index.html', `dist/${route}/index.html`);
 }
+await cp('dist/index.html', 'dist/404.html');
 
 const shell = (await files('dist'))
   .map(path => `/${relative('dist', path).replaceAll('\\\\', '/')}`)
@@ -35,7 +36,7 @@ self.addEventListener('fetch', event => {
   if (event.request.mode === 'navigate') {
     event.respondWith(fetch(event.request).then(response => {
       const copy = response.clone(); caches.open(VERSION).then(cache => cache.put(event.request, copy)); return response;
-    }).catch(async () => (await caches.match(event.request)) || (['/', '/privacy', '/terms'].includes(url.pathname) ? caches.match('/index.html') : caches.match('/offline.html'))));
+    }).catch(async () => (await caches.match(event.request)) || (['/', '/demo', '/privacy', '/terms'].includes(url.pathname) ? caches.match('/index.html') : caches.match('/offline.html'))));
     return;
   }
   event.respondWith(caches.match(event.request).then(cached => cached || fetch(event.request).then(response => {

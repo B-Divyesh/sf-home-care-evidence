@@ -2,6 +2,7 @@ import type { EvidenceAttachment, MaintenanceRecord } from './domain';
 
 interface SerializableAttachment extends Omit<EvidenceAttachment, 'blob'> { data: string }
 type SerializableRecord = Omit<MaintenanceRecord, 'events'> & { events: Array<Omit<MaintenanceRecord['events'][number], 'attachments'> & { attachments: SerializableAttachment[] }> };
+type ArchiveObject = Record<string, unknown>;
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
@@ -13,8 +14,13 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function base64ToBytes(value: string): Uint8Array {
-  const binary = atob(value);
-  return Uint8Array.from(binary, character => character.charCodeAt(0));
+  try {
+    if (value.length % 4 !== 0 || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value)) throw new Error();
+    const binary = atob(value);
+    return Uint8Array.from(binary, character => character.charCodeAt(0));
+  } catch {
+    throw new Error('This archive contains a damaged attachment.');
+  }
 }
 
 async function attachmentToJSON(attachment: EvidenceAttachment): Promise<SerializableAttachment> {
@@ -31,22 +37,99 @@ async function recordsToJSON(records: MaintenanceRecord[]): Promise<Serializable
   })));
 }
 
-function recordsFromJSON(records: SerializableRecord[]): MaintenanceRecord[] {
-  if (!Array.isArray(records)) throw new Error('This file does not contain a Home Care Evidence archive.');
-  return records.map(record => ({
-    ...(typeof record?.id === 'string' && typeof record.title === 'string' && typeof record.issue === 'string' && Array.isArray(record.events)
-      ? record
-      : (() => { throw new Error('This archive contains an invalid maintenance card.'); })()),
-    events: record.events.map(event => ({
-      ...(typeof event?.id === 'string' && typeof event.completedDate === 'string' && typeof event.note === 'string' && Array.isArray(event.attachments)
-        ? event
-        : (() => { throw new Error('This archive contains an invalid service entry.'); })()),
-      attachments: event.attachments.map(({ data, ...attachment }) => ({
-        ...attachment,
-        blob: new Blob([base64ToBytes(data).slice().buffer as ArrayBuffer], { type: attachment.type })
-      }))
-    }))
-  }));
+function object(value: unknown, message: string): ArchiveObject {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(message);
+  return value as ArchiveObject;
+}
+
+function string(value: unknown, label: string, maximum: number, allowEmpty = false): string {
+  if (typeof value !== 'string' || (!allowEmpty && !value.trim()) || value.length > maximum) {
+    throw new Error(`This archive contains an invalid ${label}.`);
+  }
+  return value;
+}
+
+function isoTimestamp(value: unknown, label: string): string {
+  const result = string(value, label, 40);
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(result) || Number.isNaN(Date.parse(result))) {
+    throw new Error(`This archive contains an invalid ${label}.`);
+  }
+  return result;
+}
+
+function calendarDate(value: unknown): string {
+  const result = string(value, 'completed date', 10);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(result);
+  if (!match) throw new Error('This archive contains an invalid completed date.');
+  const parsed = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (parsed.toISOString().slice(0, 10) !== result) throw new Error('This archive contains an invalid completed date.');
+  return result;
+}
+
+function attachmentFromJSON(value: unknown): EvidenceAttachment {
+  const item = object(value, 'This archive contains an invalid attachment.');
+  const id = string(item.id, 'attachment id', 200);
+  const name = string(item.name, 'attachment name', 255);
+  const type = string(item.type, 'attachment type', 150);
+  const kind = item.kind;
+  const size = item.size;
+  if (kind !== 'photo' && kind !== 'receipt') throw new Error('This archive contains an invalid attachment kind.');
+  if (!Number.isSafeInteger(size) || (size as number) < 0 || (size as number) > 10 * 1024 * 1024) throw new Error('This archive contains an invalid attachment size.');
+  const bytes = base64ToBytes(string(item.data, 'attachment data', 14_000_000, true));
+  if (bytes.byteLength !== size) throw new Error('This archive contains a damaged attachment.');
+  return { id, name, type, kind, size: size as number, blob: new Blob([bytes.slice().buffer as ArrayBuffer], { type }) };
+}
+
+function recordsFromJSON(value: unknown): MaintenanceRecord[] {
+  if (!Array.isArray(value)) throw new Error('This file does not contain a Home Care Evidence archive.');
+  const recordIds = new Set<string>();
+  const eventIds = new Set<string>();
+  const attachmentIds = new Set<string>();
+  return value.map(rawRecord => {
+    const record = object(rawRecord, 'This archive contains an invalid maintenance card.');
+    const id = string(record.id, 'maintenance card id', 200);
+    if (recordIds.has(id)) throw new Error('This archive contains duplicate maintenance card ids.');
+    recordIds.add(id);
+    const intervalValue = record.intervalValue;
+    if (!Number.isInteger(intervalValue) || (intervalValue as number) < 1 || (intervalValue as number) > 120) throw new Error('This archive contains an invalid repeat interval.');
+    if (record.intervalUnit !== 'weeks' && record.intervalUnit !== 'months' && record.intervalUnit !== 'years') throw new Error('This archive contains an invalid interval unit.');
+    if (!Array.isArray(record.events) || record.events.length === 0) throw new Error('This archive contains a maintenance card without service history.');
+    const events = record.events.map(rawEvent => {
+      const event = object(rawEvent, 'This archive contains an invalid service entry.');
+      const eventId = string(event.id, 'service entry id', 200);
+      if (eventIds.has(eventId)) throw new Error('This archive contains duplicate service entry ids.');
+      eventIds.add(eventId);
+      if (event.workType !== 'DIY' && event.workType !== 'Vendor') throw new Error('This archive contains an invalid work type.');
+      const workType = event.workType as MaintenanceRecord['events'][number]['workType'];
+      if (!Array.isArray(event.attachments)) throw new Error('This archive contains an invalid attachment list.');
+      const attachments = event.attachments.map(rawAttachment => {
+        const result = attachmentFromJSON(rawAttachment);
+        if (attachmentIds.has(result.id)) throw new Error('This archive contains duplicate attachment ids.');
+        attachmentIds.add(result.id);
+        return result;
+      });
+      return {
+        id: eventId,
+        completedDate: calendarDate(event.completedDate),
+        workType,
+        provider: string(event.provider, 'provider', 100, true),
+        note: string(event.note, 'service note', 1200),
+        attachments,
+        createdAt: isoTimestamp(event.createdAt, 'service timestamp')
+      };
+    });
+    return {
+      id,
+      title: string(record.title, 'card name', 80),
+      area: string(record.area, 'area or system', 60),
+      issue: string(record.issue, 'observation', 800),
+      intervalValue: intervalValue as number,
+      intervalUnit: record.intervalUnit,
+      events,
+      createdAt: isoTimestamp(record.createdAt, 'card creation timestamp'),
+      updatedAt: isoTimestamp(record.updatedAt, 'card update timestamp')
+    };
+  });
 }
 
 async function archivePayload(records: MaintenanceRecord[]): Promise<string> {
@@ -81,15 +164,24 @@ export async function exportEncryptedArchive(records: MaintenanceRecord[], passp
 }
 
 export async function readArchive(file: File, passphrase: string): Promise<MaintenanceRecord[]> {
-  let parsed: { encrypted?: boolean; salt?: string; iv?: string; data?: string; product?: string; records?: SerializableRecord[] };
-  try { parsed = JSON.parse(await file.text()) as typeof parsed; } catch { throw new Error('The selected file is not a readable archive.'); }
+  let parsed: ArchiveObject;
+  try { parsed = object(JSON.parse(await file.text()), 'The selected file is not a readable archive.'); } catch { throw new Error('The selected file is not a readable archive.'); }
   if (parsed.product !== 'home-care-evidence') throw new Error('This archive belongs to a different product.');
-  if (parsed.encrypted) {
+  if (parsed.version !== 1) throw new Error('This archive version is not supported.');
+  if (parsed.encrypted === true) {
     if (!passphrase) throw new Error('Enter the passphrase used for this encrypted archive.');
+    if (parsed.algorithm !== 'AES-GCM-256/PBKDF2-SHA256' || parsed.iterations !== 250000) throw new Error('This encrypted archive uses an unsupported format.');
     try {
-      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: base64ToBytes(parsed.iv ?? '') as BufferSource }, await encryptionKey(passphrase, base64ToBytes(parsed.salt ?? '')), base64ToBytes(parsed.data ?? '') as BufferSource);
-      parsed = JSON.parse(decoder.decode(decrypted)) as typeof parsed;
+      const iv = base64ToBytes(string(parsed.iv, 'encryption IV', 100));
+      const salt = base64ToBytes(string(parsed.salt, 'encryption salt', 100));
+      const data = base64ToBytes(string(parsed.data, 'encrypted data', 200_000_000));
+      if (iv.byteLength !== 12 || salt.byteLength !== 16) throw new Error();
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, await encryptionKey(passphrase, salt), data as BufferSource);
+      parsed = object(JSON.parse(decoder.decode(decrypted)), 'That passphrase did not open the archive.');
     } catch { throw new Error('That passphrase did not open the archive.'); }
+    if (parsed.product !== 'home-care-evidence' || parsed.version !== 1) throw new Error('The encrypted archive contains an invalid payload.');
+  } else if (parsed.encrypted !== undefined && parsed.encrypted !== false) {
+    throw new Error('This archive has an invalid encryption marker.');
   }
-  return recordsFromJSON(parsed.records ?? []);
+  return recordsFromJSON(parsed.records);
 }

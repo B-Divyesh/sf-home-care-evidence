@@ -1,8 +1,9 @@
 import './styles.css';
 import { exportEncryptedArchive, exportOpenArchive, readArchive } from './archive';
-import { getRecords, removeRecord, replaceRecords, saveRecord } from './db';
-import { CHECKOUT_URL, captureReturnedLicense, hasCachedUnlock, storeAndVerifyLicense, verifyLicense } from './license';
+import { getRecords, removeRecord, replaceRecords, saveRecord, useDemoDatabase } from './db';
+import { CHECKOUT_URL, captureReturnedLicense, hasCachedUnlock, storeAndVerifyLicense, useDemoLicenseStorage, verifyLicense } from './license';
 import { createId, dueStatus, escapeHtml, formatDate, latestEvent, type EvidenceAttachment, type IntervalUnit, type MaintenanceRecord, type ServiceEvent, type WorkType } from './domain';
+import { sampleRecords } from './sample';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 const FREE_RECORD_LIMIT = 8;
@@ -12,12 +13,29 @@ let unlocked = false;
 let searchText = '';
 let statusFilter = 'all';
 let objectUrls: string[] = [];
+const path = location.pathname.replace(/\/$/, '') || '/';
+const demoMode = path === '/demo' || (path === '/' && new URL(location.href).searchParams.get('demo') === '1');
+
+function setMetadata(title: string, description: string, route: string): void {
+  document.title = title;
+  document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', description);
+  document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', title);
+  document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', description);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:title"]')?.setAttribute('content', title);
+  document.querySelector<HTMLMetaElement>('meta[name="twitter:description"]')?.setAttribute('content', description);
+  document.querySelector<HTMLLinkElement>('link[rel="canonical"]')?.setAttribute('href', `https://home-care-evidence.sociobot.in${route}`);
+  document.querySelector<HTMLMetaElement>('meta[property="og:url"]')?.setAttribute('content', `https://home-care-evidence.sociobot.in${route}`);
+}
+
+function footer(): string {
+  return `<footer class="site-footer"><span>Keep home repair proof and due dates together.</span><nav aria-label="Site information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>Generated illustration</span><span>Built by Param Factory</span><span>Version 1.0 · repair 2</span></nav></footer>`;
+}
 
 function legalPage(kind: 'privacy' | 'terms'): void {
   const privacy = kind === 'privacy';
-  document.title = `${privacy ? 'Privacy' : 'Terms'} — Home Care Evidence`;
+  setMetadata(`${privacy ? 'Privacy' : 'Terms'} — Home Care Evidence`, privacy ? 'How Home Care Evidence stores records, attachments, exports, and license details.' : 'Terms for using the Home Care Evidence local maintenance logbook.', `/${kind}`);
   app.innerHTML = `
-    <header class="legal-header"><a class="brand-mini" href="/" aria-label="Home Care Evidence home"><span aria-hidden="true">⌂</span> Home Care Evidence</a></header>
+    <header class="legal-header"><a class="brand-mini" href="/" aria-label="Home Care Evidence home"><span aria-hidden="true">⌂</span> Home Care Evidence</a><nav aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav></header>
     <main id="main" class="legal-page">
       <p class="eyebrow">Household logbook / ${privacy ? 'privacy plate' : 'terms plate'}</p>
       <h1>${privacy ? 'Your records stay yours.' : 'Plain terms for a durable record.'}</h1>
@@ -35,17 +53,27 @@ function legalPage(kind: 'privacy' | 'terms'): void {
       `}
       <p><a class="button secondary" href="/">Return to your logbook</a></p>
     </main>
-    <footer class="site-footer"><span>Local by design.</span><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a></nav></footer>`;
+    ${footer()}`;
 }
 
-const path = location.pathname.replace(/\/$/, '') || '/';
 if (path === '/privacy' || path === '/terms') {
   legalPage(path.slice(1) as 'privacy' | 'terms');
+} else if (path !== '/' && path !== '/demo') {
+  notFoundPage();
 } else {
+  useDemoDatabase(demoMode);
+  useDemoLicenseStorage(demoMode);
   void start();
 }
 
+function notFoundPage(): void {
+  setMetadata('Page not found — Home Care Evidence', 'This Home Care Evidence page does not exist. Return to the local maintenance logbook.', location.pathname);
+  app.innerHTML = `<header class="legal-header"><a class="brand-mini" href="/" aria-label="Home Care Evidence home"><span aria-hidden="true">⌂</span> Home Care Evidence</a><nav aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav></header>
+    <main id="main" class="not-found"><p class="eyebrow">Drawer 404 / no record found</p><h1>This page is not in the logbook.</h1><p>The address may be old or incomplete. Your saved maintenance cards have not changed.</p><a class="button primary" href="/">Return to your logbook</a></main>${footer()}`;
+}
+
 async function start(): Promise<void> {
+  setMetadata(demoMode ? 'Demo — Home Care Evidence' : 'Home Care Evidence — keep repair proof ready', 'Keep home repair findings, completed work, receipts, and next due dates together in a local logbook.', demoMode ? '/demo' : '/');
   const returned = captureReturnedLicense();
   unlocked = hasCachedUnlock();
   renderShell();
@@ -53,11 +81,15 @@ async function start(): Promise<void> {
   addEventListeners();
   try {
     records = await getRecords();
+    if (demoMode && records.length === 0) {
+      await replaceRecords(sampleRecords());
+      records = await getRecords();
+    }
     renderRecords();
   } catch (error) {
     renderLoadError(error instanceof Error ? error.message : 'The local logbook could not be opened.');
   }
-  if (returned || localStorage.getItem('sb_license:home-care-evidence')) {
+  if (returned || localStorage.getItem(`${demoMode ? 'demo:' : ''}sb_license:home-care-evidence`)) {
     const result = await verifyLicense(returned);
     unlocked = result.valid;
     updateLicenseUI(result.message);
@@ -69,14 +101,15 @@ async function start(): Promise<void> {
 
 function renderShell(): void {
   app.innerHTML = `
+    ${demoMode ? `<div class="demo-banner" role="status"><strong>Demo — sample data, nothing is saved</strong><span>Changes stay in this sample logbook only.</span><div><button class="banner-action" type="button" data-action="reset-demo">Reset demo</button><button class="banner-action" type="button" data-action="start-real">Start for real</button></div></div>` : ''}
     <div class="connection-banner" id="connection-banner" role="status" hidden><span class="lamp" aria-hidden="true"></span> Offline mode — records and attachments still save on this device.</div>
     <header class="topbar">
-      <div class="wordmark"><span class="house-mark" aria-hidden="true"><span></span></span><div><p class="eyebrow">Household service register / unit 01</p><h1>Home Care Evidence</h1></div></div>
-      <div class="header-actions"><button class="button quiet" type="button" data-action="open-settings">Data &amp; license</button><button class="button primary" type="button" data-action="new-record"><span aria-hidden="true">＋</span> Add card</button></div>
+      <a class="wordmark" href="/" aria-label="Home Care Evidence home"><span class="house-mark" aria-hidden="true"><span></span></span><span><span class="eyebrow">Household service register / unit 01</span><span class="product-name">Home Care Evidence</span></span></a>
+      <div class="header-tools"><nav class="primary-nav" aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav><div class="header-actions"><button class="button quiet" type="button" data-action="open-settings">Data &amp; license</button><button class="button primary" type="button" data-action="new-record"><span aria-hidden="true">＋</span> Add card</button></div></div>
     </header>
     <main id="main" tabindex="-1">
-      <section class="overview" aria-labelledby="overview-title">
-        <div class="overview-copy"><p class="eyebrow">Reason → proof → next date</p><h2 id="overview-title">A service record the next person can use.</h2><p>Keep the finding, what was done, and the receipt together. Your logbook stays on this device and works offline.</p></div>
+      <section class="overview" aria-labelledby="page-title">
+        <div class="overview-copy"><p class="eyebrow">Reason → proof → next date</p><h1 id="page-title">Keep home repair proof ready</h1><p>For homeowners who need household members to understand past work and the next due date.</p><div class="hero-action"><a class="button primary" href="/demo">Try it with sample data</a><span>Opens three editable sample cards.</span></div><ul class="plain-facts"><li>Works offline after your first visit.</li><li>Records stay on this device unless you export.</li><li>Free for 8 cards. Unlimited costs $29 once.</li></ul></div>
         <div class="gauge-bank" aria-label="Maintenance overview">
           <div class="gauge"><span class="gauge-label">Cards</span><strong id="stat-total">—</strong><span>on device</span></div>
           <div class="gauge"><span class="gauge-label">Due soon</span><strong id="stat-soon">—</strong><span>30 days</span></div>
@@ -91,8 +124,10 @@ function renderShell(): void {
         </div>
         <div id="records" class="record-list" aria-live="polite" aria-busy="true"><div class="loading-state"><span class="spinner" aria-hidden="true"></span><p>Opening the local evidence drawer…</p></div></div>
       </section>
+      <section class="how-it-works" aria-labelledby="how-title"><p class="eyebrow">Three entries / one record</p><h2 id="how-title">How the logbook works</h2><ol><li><strong>Record the reason.</strong><span>Save the finding and the part of the home it affects.</span></li><li><strong>Attach the proof.</strong><span>Keep work notes, photos, and the receipt with the card.</span></li><li><strong>Check the next date.</strong><span>The latest completed work sets the next due date.</span></li></ol></section>
+      <section class="scope-note" aria-labelledby="scope-title"><h2 id="scope-title">A record, not repair advice</h2><p>This tool stores what you enter. It does not inspect, diagnose, or verify home repairs.</p></section>
     </main>
-    <footer class="site-footer"><span>Records stay on this device unless you export them.</span><nav aria-label="Legal"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>Illustration generated for this product</span></nav></footer>
+    ${footer()}
     ${recordDialogTemplate()}
     ${serviceDialogTemplate()}
     ${settingsDialogTemplate()}
@@ -169,6 +204,8 @@ function addEventListeners(): void {
     if (action === 'export-open') void exportOpen();
     if (action === 'export-encrypted') void exportEncrypted();
     if (action === 'import') void importRecords();
+    if (action === 'reset-demo' && demoMode) void resetDemo();
+    if (action === 'start-real' && demoMode) void startReal();
     if (action === 'dismiss-toast') hideToast();
     if (action === 'reload') location.reload();
   });
@@ -178,6 +215,24 @@ function addEventListeners(): void {
   query<HTMLFormElement>('#service-form').addEventListener('submit', event => void submitService(event));
   query<HTMLFormElement>('#license-form').addEventListener('submit', event => void submitLicense(event));
   document.querySelectorAll<HTMLDialogElement>('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
+}
+
+async function resetDemo(): Promise<void> {
+  await replaceRecords(sampleRecords());
+  records = await getRecords();
+  searchText = '';
+  statusFilter = 'all';
+  query<HTMLInputElement>('#search').value = '';
+  query<HTMLSelectElement>('#status-filter').value = 'all';
+  renderRecords();
+  showToast('Sample cards reset.');
+}
+
+async function startReal(): Promise<void> {
+  await replaceRecords([]);
+  localStorage.removeItem('demo:sb_license:home-care-evidence');
+  localStorage.removeItem('demo:sb_license_verdict:home-care-evidence');
+  location.assign('/');
 }
 
 function query<T extends Element>(selector: string): T {
@@ -322,7 +377,7 @@ function renderRecords(): void {
   query('#stat-total').textContent = String(records.length);
   query('#stat-soon').textContent = String(statuses.filter(status => status.kind === 'soon').length);
   query('#stat-overdue').textContent = String(statuses.filter(status => status.kind === 'overdue').length);
-  query('#storage-note').textContent = `${records.length} card${records.length === 1 ? '' : 's'} stored locally${unlocked ? ' · Unlimited active' : ` · ${Math.max(0, FREE_RECORD_LIMIT - records.length)} free spaces left`}`;
+  query('#storage-note').textContent = demoMode ? `${records.length} sample card${records.length === 1 ? '' : 's'} in the demo sandbox` : `${records.length} card${records.length === 1 ? '' : 's'} stored locally${unlocked ? ' · Unlimited active' : ` · ${Math.max(0, FREE_RECORD_LIMIT - records.length)} free spaces left`}`;
   const visible = records.filter(record => {
     const haystack = `${record.title} ${record.area} ${record.issue} ${record.events.map(item => `${item.note} ${item.provider}`).join(' ')}`.toLowerCase();
     return (!searchText || haystack.includes(searchText)) && (statusFilter === 'all' || dueStatus(record).kind === statusFilter);
@@ -348,7 +403,7 @@ function recordCard(record: MaintenanceRecord): string {
       <p class="issue"><span>Why this card exists</span>${escapeHtml(record.issue)}</p>
       <details><summary>View evidence &amp; history <span>${record.events.length} service entr${record.events.length === 1 ? 'y' : 'ies'}</span></summary>
         <div class="evidence-body"><div class="history"><h4>Service history</h4><ol>${sortedEvents.map((entry, index) => eventItem(entry, index)).join('')}</ol></div>
-          <aside class="schedule-plate"><span class="eyebrow">Repeat setting</span><strong>Every ${record.intervalValue} ${record.intervalUnit}</strong><dl><div><dt>Next due</dt><dd>${formatDate(status.due)}</dd></div><div><dt>Card created</dt><dd>${formatDate(record.createdAt.slice(0, 10))}</dd></div></dl></aside></div>
+          <div class="schedule-plate"><span class="eyebrow">Repeat setting</span><strong>Every ${record.intervalValue} ${record.intervalUnit}</strong><dl><div><dt>Next due</dt><dd>${formatDate(status.due)}</dd></div><div><dt>Card created</dt><dd>${formatDate(record.createdAt.slice(0, 10))}</dd></div></dl></div></div>
       </details>
       <div class="card-actions"><button class="button secondary" type="button" data-action="add-service" data-id="${record.id}">Add completed work</button><button class="button quiet" type="button" data-action="print-record" data-id="${record.id}">Print one-page history</button><button class="button quiet" type="button" data-action="edit-record" data-id="${record.id}">Edit card</button><button class="text-danger" type="button" data-action="delete-record" data-id="${record.id}">Delete</button></div>
     </div></article>`;
@@ -392,9 +447,9 @@ async function exportEncrypted(): Promise<void> {
 async function importRecords(): Promise<void> {
   const file = query<HTMLInputElement>('#archive-file').files?.[0];
   if (!file) { showToast('Choose a .json or .hce archive first.'); return; }
-  if (!confirm(`Replace the ${records.length} card${records.length === 1 ? '' : 's'} currently on this device with “${file.name}”? Export first if you need a backup.`)) return;
   try {
     const imported = await readArchive(file, query<HTMLInputElement>('#archive-passphrase').value);
+    if (!confirm(`Replace the ${records.length} card${records.length === 1 ? '' : 's'} currently on this device with “${file.name}”? Export first if you need a backup.`)) return;
     await replaceRecords(imported);
     records = await getRecords();
     renderRecords();

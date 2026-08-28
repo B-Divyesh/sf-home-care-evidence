@@ -6,12 +6,13 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(async () => {
     localStorage.clear();
     indexedDB.deleteDatabase('home-care-evidence');
+    indexedDB.deleteDatabase('demo:home-care-evidence');
   });
   await page.reload();
 });
 
-test('creates a durable maintenance card and adds service history', async ({ page }) => {
-  await expect(page.getByRole('heading', { level: 1, name: 'Home Care Evidence' })).toBeVisible();
+test('@claim:card-records creates a durable maintenance card and adds service history', async ({ page }) => {
+  await expect(page.getByRole('heading', { level: 1, name: 'Keep home repair proof ready' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Turn the next finished job into a durable record.' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Add your first card' }).click();
@@ -43,22 +44,17 @@ test('has no serious accessibility violations in empty and dialog states', async
   expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
 });
 
-test('restores the app shell and local records while offline', async ({ page, context }) => {
-  await page.getByRole('button', { name: 'Add your first card' }).click();
-  await page.getByLabel('Card name *').fill('Smoke alarm batteries');
-  await page.getByLabel('Area or system *').fill('Whole house');
-  await page.getByLabel('What was observed? *').fill('Routine replacement reminder.');
-  await page.locator('#record-form').getByLabel('Completed date *').fill('2026-08-01');
-  await page.locator('#record-form').getByLabel('What was done? *').fill('Replaced and tested each alarm battery.');
-  await page.getByRole('button', { name: 'Save card' }).click();
+test('@claim:offline-reload restores the demo and local records while offline', async ({ page, context }) => {
+  await page.goto('/demo');
+  await expect(page.getByRole('heading', { name: 'Water heater flush' })).toBeVisible();
   await page.evaluate(() => navigator.serviceWorker.ready);
   await page.reload();
   await page.waitForFunction(() => navigator.serviceWorker.controller !== null);
-  await expect(page.getByRole('heading', { name: 'Smoke alarm batteries' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Water heater flush' })).toBeVisible();
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByText('Offline mode — records and attachments still save on this device.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Smoke alarm batteries' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Water heater flush' })).toBeVisible();
   await context.setOffline(false);
 });
 
@@ -120,4 +116,96 @@ test('keeps an 80-character card name readable and every card action touch sized
     expect(bounds!.width, label).toBeGreaterThanOrEqual(44);
     expect(bounds!.height, label).toBeGreaterThanOrEqual(44);
   }
+});
+
+test('rejects a malformed branded archive before confirmation and preserves valid data', async ({ page }) => {
+  await page.getByRole('button', { name: 'Add your first card' }).click();
+  await page.getByLabel('Card name *').fill('Known good card');
+  await page.getByLabel('Area or system *').fill('Utility room');
+  await page.getByLabel('What was observed? *').fill('Known good observation.');
+  await page.locator('#record-form').getByLabel('Completed date *').fill('2026-08-28');
+  await page.locator('#record-form').getByLabel('What was done? *').fill('Known good work note.');
+  await page.getByRole('button', { name: 'Save card' }).click();
+
+  let confirmationCount = 0;
+  page.on('dialog', async dialog => { confirmationCount += 1; await dialog.accept(); });
+  await page.getByRole('button', { name: 'Data & license' }).click();
+  await page.getByLabel('Import a backup').setInputFiles({
+    name: 'incomplete.json',
+    mimeType: 'application/json',
+    buffer: Buffer.from(JSON.stringify({ product: 'home-care-evidence', version: 1, records: [{ id: 'broken', title: 'Incomplete', issue: 'Missing required fields', events: [] }] }))
+  });
+  await page.getByRole('button', { name: 'Replace logbook from file' }).click();
+  await expect(page.getByText('This archive contains an invalid repeat interval.')).toBeVisible();
+  expect(confirmationCount).toBe(0);
+  await page.getByRole('button', { name: 'Close data and license settings' }).click();
+  await expect(page.getByRole('heading', { name: 'Known good card' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Known good card' })).toBeVisible();
+  await expect(page.getByText('The evidence drawer did not open')).toHaveCount(0);
+});
+
+test('shows a job-focused first screen and a one-click isolated demo', async ({ page }) => {
+  await expect(page.locator('h1')).toHaveText('Keep home repair proof ready');
+  await expect(page.getByText(/For homeowners who need household members/)).toBeVisible();
+  await page.getByRole('link', { name: 'Try it with sample data' }).click();
+  await expect(page).toHaveURL('/demo');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await expect(page.locator('.record-card')).toHaveCount(3);
+  await page.goto('/?demo=1');
+  await expect(page.getByText('Demo — sample data, nothing is saved')).toBeVisible();
+  await expect(page.locator('.record-card')).toHaveCount(3);
+});
+
+test('keeps footer links touch sized at 390px and renders a designed not-found page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const footer = page.getByRole('contentinfo');
+  for (const name of ['Privacy', 'Terms']) {
+    const bounds = await footer.getByRole('link', { name, exact: true }).boundingBox();
+    expect(bounds).not.toBeNull();
+    expect(bounds!.width).toBeGreaterThanOrEqual(44);
+    expect(bounds!.height).toBeGreaterThanOrEqual(44);
+  }
+  await page.goto('/not-a-real-route');
+  await expect(page).toHaveTitle('Page not found — Home Care Evidence');
+  await expect(page.getByRole('heading', { level: 1, name: 'This page is not in the logbook.' })).toBeVisible();
+  await expect(page.locator('main')).toHaveCount(1);
+});
+
+test('supports keyboard-only use, reduced motion, and populated accessibility', async ({ page }) => {
+  await page.keyboard.press('Tab');
+  await expect(page.getByRole('link', { name: 'Skip to records' })).toBeFocused();
+  await page.keyboard.press('Enter');
+  await expect(page.locator('main')).toBeFocused();
+  await page.getByRole('button', { name: 'Add your first card' }).focus();
+  await page.keyboard.press('Enter');
+  await expect(page.getByLabel('Card name *')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('button', { name: 'Add your first card' })).toBeFocused();
+
+  await page.goto('/demo');
+  await page.locator('[data-record-id="demo-water-heater"] summary').click();
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter(item => ['serious', 'critical'].includes(item.impact ?? ''))).toEqual([]);
+  expect(results.violations.find(item => item.id === 'landmark-complementary-is-top-level')).toBeUndefined();
+
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const motion = await page.locator('.button').first().evaluate(element => {
+    const style = getComputedStyle(element);
+    return { animation: style.animationDuration, transition: style.transitionDuration, scroll: getComputedStyle(document.documentElement).scrollBehavior };
+  });
+  expect(Number.parseFloat(motion.animation)).toBeLessThanOrEqual(0.00001);
+  expect(Number.parseFloat(motion.transition)).toBeLessThanOrEqual(0.00001);
+  expect(motion.scroll).toBe('auto');
+});
+
+test('announces an activated service-worker update with a reload action', async ({ page }) => {
+  await page.goto('/demo');
+  await expect(page.locator('.record-card')).toHaveCount(3);
+  await page.evaluate(() => {
+    sessionStorage.setItem('hce-sw-ready', '1');
+    navigator.serviceWorker.dispatchEvent(new MessageEvent('message', { data: { type: 'SW_UPDATED' } }));
+  });
+  await expect(page.getByText('A fresh version is ready.')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Reload' })).toBeVisible();
 });
