@@ -16,7 +16,7 @@ The interface is deliberately single-mode. A warm enamel background and ink-dark
 | Ink | `#17211F` | body text |
 | Muted ink | `#59645F` | secondary copy (7:1+ on Paper) |
 | Cream | `#FFF9E8` | record surfaces and fields |
-| Signal orange | `#C94F2D` | primary action, overdue condition, focus accent |
+| Signal orange | `#B64024` | primary action, overdue condition, focus accent; cream text contrast 5.3:1 |
 | Ochre | `#A56812` | due-soon warning with a text label |
 | Brass | `#D7B96E` | hairlines, ticks, decorative hardware |
 | Success | `#236A4B` | complete/current status with a text label |
@@ -74,4 +74,3 @@ Final generation prompt:
 - License/provenance: original model-generated asset for this product; no third-party source material supplied
 - Source candidate: `assets/src/evidence-station.png`
 - Production exports: responsive WebP files under `public/assets/`
-

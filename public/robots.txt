@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://home-care-evidence.sociobot.in/sitemap.xml
