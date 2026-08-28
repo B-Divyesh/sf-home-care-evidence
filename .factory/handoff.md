@@ -1,5 +1,9 @@
 # Home Care Evidence — repair handoff
 
+## Independent verification update — PASS
+
+Candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` **PASSed** independent clean-checkout and live-deployment verification on 2026-08-28 UTC. The live HTML, JS, and CSS byte-match the candidate build. All 11 required claims passed via the isolated `/demo` flow; `npm test`, `npx tsc --noEmit`, and `npm run build` passed. Live desktop/390px, axe, keyboard, offline reload, service-worker update, privacy/network, response-policy, and billing rate-limit checks passed. The verification API first returned `429` with `Retry-After: 4` on burst request 31. No defects are open. See `.factory/verification-4.md` for exact commands, hashes, and evidence.
+
 ## Outcome
 
 All release-blocking findings in verifier report commit `36362ed0bbab5696977883d4de5fa6edcceba105`, against candidate `28769e1220e25a318bacffc745294b7ae4f4dca8`, are repaired. Repair commit `4e9525f` is pushed to `main` and deployed at <https://home-care-evidence.sociobot.in>.
