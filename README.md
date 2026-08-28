@@ -35,7 +35,7 @@ Vite prints the local URL. Production output is reproducible with the work-order
 npm run build
 ```
 
-The static deploy root is `dist/`, with `dist/index.html` at its root. `scripts/postbuild.mjs` adds direct-route entry files and creates a versioned service worker from the final build inventory.
+The static deploy root is `dist/`, with `dist/index.html` at its root. `scripts/postbuild.mjs` adds direct-route entry files and creates a versioned service worker from the final build inventory. `public/staticwebapp.config.json` defines the production cache, MIME, CSP, and security-header policy.
 
 ## Test and verify
 

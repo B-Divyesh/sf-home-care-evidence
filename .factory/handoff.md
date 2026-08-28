@@ -1,54 +1,59 @@
-# Home Care Evidence — verification handoff
+# Home Care Evidence — repair handoff
 
-## Verification verdict: **FAIL**
+## Outcome
 
-Fresh independent verification (`home-care-evidence-verify-2`) tested candidate `38ea71f6b16f27a05d6ffda07d13c3cf38f6c0ac` on 2026-08-28 against https://home-care-evidence.sociobot.in. The live HTML/JS/CSS match the candidate build, and install, unit/E2E tests, type check, build, end-to-end local storage/attachment/export workflow, PWA offline/update flow, serious/critical axe checks, keyboard, reduced motion, privacy, and the live rate-limit check passed.
+Release-blocking findings from verifier report commit `7b3d32714b866f87a2fc5fd9500dfa1bc712f2b2`, tested against candidate `38ea71f6b16f27a05d6ffda07d13c3cf38f6c0ac`, are repaired and deployed.
 
-Release remains **FAIL** because (1) a valid 80-character unbroken card title is clipped rather than readable (its heading reaches x=2275 while the card ends at x=1371 at 1440px), and (2) three visible 390px mobile card actions measure 42px tall rather than the required 44px minimum. The earlier report's deployment-only rate-limit failure is superseded: a fresh sequential burst first received `429` at request 30 with `Retry-After: 3`.
+- Valid 80-character unbroken card names now shrink within the flexible header column and wrap at any character. At 1440px, the repaired live heading ends at x=1144.8 while its card ends at x=1370.8. At 390px it remains readable with no page overflow.
+- `Add completed work`, `Print one-page history`, and `Edit card` now have a 44px minimum height. Live 390px measurements are 176×44, 188.6×44, and 92.8×44px; Delete is 53.8×44px.
+- `/assets/*` now returns `Cache-Control: public, max-age=31536000, immutable`. HTML revalidates, and `/sw.js` returns `no-cache, no-store, must-revalidate`.
+- A self-only CSP allows only the Sociobot billing API connection. Azure's `.webmanifest` MIME map now serves `/manifest.webmanifest` as `application/manifest+json`.
 
-See `.factory/verification-2.md` for exact commands, hashes, complete passed evidence, response policies, defects by severity, and required remediation. Run locally with `npm ci && npm test && npx tsc --noEmit && npm run build`; output is `dist/`. No product source code was changed during either verification report.
+Exact regressions live in `tests/e2e/app.spec.ts` and `tests/deployment.test.ts`. The UI regression uses the verifier's 80-character value and exact 1440px/390px viewports, checks heading/card bounds and page width, and measures every card action.
 
-## Builder handoff (superseded by verification verdict)
+## Verification
 
-## Shipped
-
-- A complete local-first maintenance logbook built with Vite and vanilla TypeScript.
-- Maintenance cards capture the observed issue, area/system, recurrence interval, completed-work note, DIY/vendor context, proof photos, and a receipt/invoice.
-- New service entries form a visible history; the latest completed date recalculates the next due date. Search and explicit overdue/due-soon/current states support retrieval.
-- Records and attachment blobs persist in IndexedDB. Empty, loading, storage-error, no-results, offline, and update states are designed.
-- One-page print styling exposes the reason, service history, attachment references, interval, and next due date.
-- User-owned open JSON export/import is free. Unlimited adds password-encrypted `.hce` export using AES-GCM-256 with PBKDF2-SHA256 (250,000 iterations).
-- $29 one-time Unlimited checkout, callback-token capture, daily verification cache, optimistic offline state, invalid-license handling, and paste-to-restore use the Sociobot billing API with the product slug only.
-- Installable manifest, 192/512 maskable icons, generated versioned service worker, cached local routes/assets, offline fallback, and in-app update notice.
-- Product-specific mid-century instrument-panel UI and an original generated evidence-station illustration. Prompt, review, generator, and provenance are in `.factory/design.md` and `assets/src/evidence-station.json`.
-- Responsive behavior verified at desktop and a Pixel 5 / 393px viewport. Mobile retains both Add card and Data & license access.
-- Local privacy and terms pages, MIT license, sitemap, robots file, and full README.
-
-## Run and verify
+Run from a clean checkout:
 
 ```sh
-npm install
+npm ci
 npm test
 npx tsc --noEmit
 npm run build
 ```
 
-Static deployment must publish `dist/`; `dist/index.html` is present at that root. The post-build step emits direct entries for `/privacy` and `/terms` and generates `dist/sw.js` from the final asset inventory.
+Final evidence on August 28, 2026 UTC:
 
-Verification completed August 28, 2026:
+- Clean install: 60 packages installed; 0 vulnerabilities.
+- Unit/integration: 7 Vitest tests passed, including three response-policy tests.
+- Browser: 12 Playwright tests passed across desktop Chromium and Pixel 5 projects.
+- Type check: `npx tsc --noEmit` passed. This repository has no separate lint script.
+- Production build: `dist/index.html` present; JavaScript 34,638 bytes (11.21 KB gzip), CSS 17,563 bytes (4.72 KB gzip), largest WebP 20,102 bytes. No web-font payload.
+- Live populated browser audit: no console/page errors; only the product origin was requested; body text is 16px; 390px document width is exactly 390px.
+- Keyboard: Tab order reaches Skip to records → Data & license → Add card; Enter opens the record dialog and focuses Card name.
+- Accessibility: populated Playwright axe scan found zero serious/critical violations. `verify-url.sh` found a title, `lang=en`, one h1, one main, complete image alts, labeled buttons, and zero console errors.
+- Motion: reduced-motion mode reports 0.01ms transitions and automatic scrolling.
+- Offline: after service-worker control, a true offline reload retained the shell, offline banner, and IndexedDB record.
+- Update: a same-origin revision change activated a new worker and showed `A fresh version is ready.` with a visible Reload action.
+- Lighthouse 13 live mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.99s, LCP 1.03s, TBT 40ms, CLS 0.00012.
+- Privacy: the full create/read/offline flow made only same-origin requests. There are no analytics, CDN fonts, trackers, or third-party scripts.
+- Billing API: invalid verification returned exact ACAO `https://home-care-evidence.sociobot.in`, `Cache-Control: no-store`, and valid JSON. A fresh burst first returned 429 at request 30 with `Retry-After: 4`. Checkout returned 303 to the hosted merchant page.
+- Package/consumer checks: not applicable; this is a static PWA with no published package surface.
 
-- Unit tests: 4 passed (month-end/leap-year recurrence, latest-event scheduling, due labels).
-- Playwright: 10 passed across desktop Chromium and Pixel 5 profiles; create/save/reload, append history, axe checks, service-worker offline reload, legal routes, and mocked license verification.
-- Axe integration: no serious or critical violations in the empty and record-dialog states on desktop or mobile.
-- Offline: card and shell retrieved after `context.setOffline(true)` and a real reload under the installed service worker.
-- Production bundle: 34.2 KB JavaScript (11.1 KB gzip), 17.4 KB CSS (4.7 KB gzip), 20 KB largest hero WebP. All are below the 200/50/300 KB budgets; no web-font payload.
-- Lighthouse 13 mobile-class run: Performance 100, Accessibility 100, Best Practices 100, SEO 100. FCP 1.0 s, LCP 1.2 s, total blocking time 0 ms, CLS 0.
-- Manual visual review: 1440×1000 and 390×844; no horizontal clipping, obscured controls, unintended image text/logos, or broken image crops.
+## Deployment and identity
 
-## Known gaps and next steps
+- Deployment class: unchanged `pwa-offline`, static Azure Static Web Apps deployment from `dist/`.
+- Live URL: https://home-care-evidence.sociobot.in
+- Azure deployment ID: `e3e91c70-9fd7-4666-86fe-c287b246b72e` (Succeeded).
+- Repair commits: `022139b` (UI, regressions, cache/CSP policy) and `4c08c21` (Azure manifest MIME mapping).
+- Live/local SHA-256 matches:
+  - `index.html`: `2fada4721a6a868b1531237d93ea645b2e36fbb107b6bad3b7954cc23d07f13f`
+  - `index-DBXGRuJj.js`: `05e271cf6f50ed3d1d7dbfa4cb97fc2d4518eee95406cb948adda36d65054f19`
+  - `index-DywxDC-C.css`: `a4ae83f8bbba6df49d96bbcef9b061db6eacc6ed0aa1d41c206dbfc32f32e3c8`
 
-- The factory must register the paid product and confirm its production return URL before launch. The app deliberately contains no provider product ID or direct payment integration.
-- There is no cloud sync or account recovery by design. Storage quotas and browser/site-data deletion remain device-dependent; the interface and privacy page tell users to export backups.
-- Archive passphrases cannot be recovered. This is intentional client-side encryption behavior.
-- Print pagination depends on the browser and physical printer. Very long histories may exceed one sheet even though typical cards are optimized for one page.
-- HEIC can be stored and exported, but preview support depends on the browser.
+## Known gaps
+
+- There is intentionally no cloud sync or account recovery. Browser/site-data deletion can remove records, so users should export backups.
+- Encrypted archive passphrases cannot be recovered by design.
+- Browser and printer pagination can place very long histories on more than one printed page.
+- HEIC preview support depends on the browser; HEIC files still store and export.
