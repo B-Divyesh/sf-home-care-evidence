@@ -1,4 +1,12 @@
-# Home Care Evidence — build handoff
+# Home Care Evidence — verification handoff
+
+## Verification verdict: **FAIL**
+
+Candidate `38ea71f6b16f27a05d6ffda07d13c3cf38f6c0ac` was independently verified on 2026-08-28 against https://home-care-evidence.sociobot.in. The local app, production build, PWA workflow, accessibility, and live asset identity pass, but release is blocked by a hard acceptance failure: the Sociobot product-unlock verification endpoint returned 200 to all 60 rapid invalid-license requests (30 concurrent) and never returned `429` or `Retry-After`.
+
+See `.factory/verification.md` for complete commands, hashes, test evidence, defects by severity, and remediation. The current build remains runnable with `npm ci && npm test && npx tsc --noEmit && npm run build`; `dist/` is produced. No product source code was changed during verification.
+
+## Builder handoff (superseded by verification verdict)
 
 ## Shipped
 
