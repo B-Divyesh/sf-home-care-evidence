@@ -14,7 +14,7 @@ for (const route of ['privacy', 'terms']) {
 
 const shell = (await files('dist'))
   .map(path => `/${relative('dist', path).replaceAll('\\\\', '/')}`)
-  .filter(path => !path.endsWith('.map') && path !== '/sw.js');
+  .filter(path => !path.endsWith('.map') && path !== '/sw.js' && path !== '/staticwebapp.config.json');
 
 const serviceWorker = `
 const VERSION = 'hce-${Date.now()}';

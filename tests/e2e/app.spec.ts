@@ -83,3 +83,41 @@ test('captures a returned license, verifies it, and removes it from the URL', as
   await expect(page.getByRole('link', { name: 'Buy Unlimited — $29' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/home-care-evidence/checkout');
   expect(await page.evaluate(() => localStorage.getItem('sb_license:home-care-evidence'))).toBe('verified-test-token');
 });
+
+test('keeps an 80-character card name readable and every card action touch sized', async ({ page }) => {
+  const boundaryTitle = 'A'.repeat(80);
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.getByRole('button', { name: 'Add your first card' }).click();
+  await expect(page.getByLabel('Card name *')).toHaveAttribute('maxlength', '80');
+  await page.getByLabel('Card name *').fill(boundaryTitle);
+  await page.getByLabel('Area or system *').fill('Utility room');
+  await page.getByLabel('What was observed? *').fill('Boundary title test.');
+  await page.locator('#record-form').getByLabel('Completed date *').fill('2026-08-28');
+  await page.locator('#record-form').getByLabel('What was done? *').fill('Recorded the condition.');
+  await page.getByRole('button', { name: 'Save card' }).click();
+
+  const heading = page.getByRole('heading', { level: 3, name: boundaryTitle });
+  const card = page.locator('.record-card');
+  await expect(heading).toBeVisible();
+  const desktopBounds = await Promise.all([heading.boundingBox(), card.boundingBox()]);
+  expect(desktopBounds[0]).not.toBeNull();
+  expect(desktopBounds[1]).not.toBeNull();
+  expect(desktopBounds[0]!.x + desktopBounds[0]!.width).toBeLessThanOrEqual(desktopBounds[1]!.x + desktopBounds[1]!.width);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(heading).toBeVisible();
+  const mobileBounds = await Promise.all([heading.boundingBox(), card.boundingBox()]);
+  expect(mobileBounds[0]!.x + mobileBounds[0]!.width).toBeLessThanOrEqual(mobileBounds[1]!.x + mobileBounds[1]!.width);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+
+  const actions = page.locator('.card-actions button');
+  await expect(actions).toHaveCount(4);
+  for (const action of await actions.all()) {
+    const bounds = await action.boundingBox();
+    const label = (await action.textContent()) ?? 'unlabeled card action';
+    expect(bounds, label).not.toBeNull();
+    expect(bounds!.width, label).toBeGreaterThanOrEqual(44);
+    expect(bounds!.height, label).toBeGreaterThanOrEqual(44);
+  }
+});
