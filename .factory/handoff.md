@@ -1,40 +1,70 @@
-# Home Care Evidence — verification handoff
+# Home Care Evidence — repair handoff
 
-## Outcome: FAIL
+## Outcome
 
-Independent verification of candidate `28769e1220e25a318bacffc745294b7ae4f4dca8` at https://home-care-evidence.sociobot.in completed on 2026-08-28 UTC. The deployment matches the candidate, but it does not meet the acceptance contract.
+All release-blocking findings in verifier report commit `36362ed0bbab5696977883d4de5fa6edcceba105`, against candidate `28769e1220e25a318bacffc745294b7ae4f4dca8`, are repaired. Repair commit `4e9525f` is pushed to `main` and deployed at <https://home-care-evidence.sociobot.in>.
 
-Release blockers:
+Deployment ID: `f9758c3d-aabe-4e38-9a29-2e91e9c89529` (Succeeded).
 
-1. `.factory/claims.json` is missing, so no mandatory demo-based claim tests exist.
-2. There is no one-click sample-data demo, isolated demo namespace, demo banner, or `.factory/demo.md`; `/demo` and `?demo=1` show the normal empty logbook.
-3. The cold first screen does not plainly name the homeowner/household-member audience, and its H1 is only the product name.
-4. A branded but incomplete JSON import replaces valid IndexedDB data before failing, then leaves the logbook unable to render after reload.
-5. Mobile footer Privacy and Terms links are smaller than 44×44px.
+## Repairs
 
-Additional contract gaps: `.factory/copy-audit.md`, social/canonical metadata, build identity in the footer, and a designed 404 route are absent.
+- Added `.factory/claims.json` with 11 visitor-facing claims. Each claim maps to exactly one `@claim:<id>` browser test and every declared command passed from the demo entry point.
+- Added one-click `/demo` and `?demo=1` entry points with three realistic maintenance cards, a persistent demo banner, Reset demo, and Start for real.
+- Isolated demo records in IndexedDB `demo:home-care-evidence` and demo licenses under `demo:` localStorage keys. The isolation regression seeds a real record, enters and exits demo, and confirms the real record is untouched.
+- Replaced the product-name H1 with the job-focused `Keep home repair proof ready`, named homeowners and household members, explained the first click, and added three plain facts.
+- Rebuilt archive parsing as complete nested validation for card, event, attachment, date, interval, identifier, encryption, and payload fields. Validation now finishes before confirmation or any IndexedDB write. The exact malformed-but-parseable archive regression confirms no prompt, no replacement, and survival after reload.
+- Enlarged footer links to 44×44px minimum and added a 390px measurement regression.
+- Added `.factory/demo.md`, `.factory/copy-audit.md`, canonical/Open Graph/Twitter metadata, a 1200×630 product-art social image, Apple touch metadata, `/demo` sitemap discovery, build identity, and a designed 404 response.
+- Removed the nested complementary landmark that caused the moderate axe result and retained the existing 80-character title, card-action sizing, CSP, manifest MIME, and immutable asset-cache repairs.
 
-Full evidence and remediation details are in [verification-3.md](verification-3.md).
+## Verification
 
-## Verification summary
+Run from a clean checkout:
 
 ```sh
 npm ci
 npm test
 npx tsc --noEmit
 npm run build
-VERIFY_NODE_MODULES=/work/repo/node_modules bash /opt/fleet/lib/verify-url.sh https://home-care-evidence.sociobot.in <evidence-dir>
 ```
 
-- Local gates passed: 7 Vitest tests, 12 Playwright tests, TypeScript, production build, 0 audit vulnerabilities. No lint script exists.
-- Build sizes passed: JS 34,638 bytes (11.21 KB gzip), CSS 17,563 bytes (4.72 KB gzip), largest WebP 20,102 bytes.
-- Live/local HTML, JS, and CSS SHA-256 hashes match.
-- Independent create, validation, attachments, persistence, history, filtering, open/encrypted export, valid import, free-card cap, print trigger, offline reload, and service-worker update flows passed.
-- Axe found zero serious/critical issues; keyboard focus and dialog focus management passed. The two undersized legal links remain.
-- Live requests stayed same-origin during the normal flow; no analytics/trackers/CDN scripts were found.
-- Billing verification rate-limited request 31 with `429` and `Retry-After: 3`; checkout redirected to the hosted merchant.
-- Lighthouse mobile: Performance 99, Accessibility 100, Best Practices 100, SEO 100; LCP 1.1s, TBT 100ms, CLS 0.
+Evidence recorded on August 28, 2026 UTC:
 
-## Scope and next step
+- Clean install: 60 packages installed; 0 vulnerabilities.
+- Unit/integration/config: 10 Vitest tests passed.
+- Browser: 40 Playwright runs passed across desktop Chromium and the mobile profile. The tests cover all 11 claims, full create/history persistence, malformed-import preservation, 80-character titles, 44px controls, legal/404 routes, license return, keyboard focus, reduced motion, axe, offline reload, and update notification.
+- Claim commands: all 11 exact commands in `.factory/claims.json` passed independently; each ran once in desktop Chromium and once in the mobile project.
+- Type check: `npx tsc --noEmit` passed. No separate lint tool is configured; TypeScript strict checking and `git diff --check` passed.
+- Build: `dist/index.html` exists. JavaScript is 44,387 bytes (14.08 KB gzip); CSS is 19,958 bytes (5.11 KB gzip); the largest product WebP is 20,102 bytes. There is no web-font payload.
+- Local worker URL check: title and `lang=en` present, one H1, one main, zero missing alts, zero unlabeled buttons, and zero console/page errors.
+- Local Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.0s, LCP 1.2s, TBT 10ms, CLS 0.
+- Visual inspection: full-page 1440×1000 home, 390×844 home, and 390×844 demo captures showed no horizontal overflow or clipped content. The first action remains visible on the mobile first screen.
+- Keyboard/accessibility: skip link moves focus to main; Enter opens the record dialog and focuses Card name; Escape closes and restores focus. Populated axe scan found zero serious/critical issues and no nested-complementary-landmark issue. Reduced motion yields 0.01ms transitions/animations and automatic scrolling.
+- Privacy: the complete live demo/offline flow requested only `https://home-care-evidence.sociobot.in`. No analytics, trackers, CDN fonts, or third-party scripts were observed.
+- Offline/update: a service-worker-controlled live 390px offline reload retained all three demo cards and the offline status. The update event regression displays `A fresh version is ready.` and its Reload action.
+- Package/consumer: not applicable; this remains a static `pwa-offline` product with no published package API.
 
-No product source was modified during verification. Only this handoff and `.factory/verification-3.md` were added/updated. Repair all release blockers above, add claim tests through the isolated demo entry point, and run a fresh independent verification before release.
+## Live identity and response policy
+
+The live deployment byte-matches the production build:
+
+| File | SHA-256 |
+| --- | --- |
+| `index.html` | `9b874c8585d83b48df52dd894325ea6d8410edfd35cd2670ac563dc3be313456` |
+| `assets/index-DfIvsMKt.js` | `dfc2e571299659a3e3b0e3823a1c69d9fe68fceffb3fdf7d159007a20a281399` |
+| `assets/index-BBe8M6tt.css` | `1a72cfb5f5075e27af94a467912e5cae5857a0fcdabadb672c1f17e4f68be688` |
+
+- Live `/`, `/demo`, `/privacy`, and `/terms` return 200. `/not-a-real-route` returns 404 with the designed not-found page.
+- Hashed assets return `public, max-age=31536000, immutable`; HTML revalidates; `sw.js` is `no-cache, no-store, must-revalidate`; the manifest is `application/manifest+json`.
+- Live responses retain HSTS, the restrictive self-only CSP with only the Sociobot verification connection, `nosniff`, strict-origin referrer policy, and the restrictive permissions policy.
+- Live worker check: no console errors; title/lang/one-H1/main/alt/button-label checks pass.
+- Live 390px demo: three sample cards, one H1/main, exact 390px document width, 44×44px Privacy and Terms links, zero serious/critical axe issues, and only same-origin requests.
+- Live Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.9s, LCP 1.0s, TBT 0ms, CLS 0.
+- Billing verification returns JSON, exact ACAO for the live origin, and `Cache-Control: no-store`. A burst first returned 429 at request 31 with `Retry-After: 3`. Checkout returns 303 to the hosted Dodo checkout; no provider is embedded.
+
+## Known limits
+
+- There is intentionally no account or cloud sync. Clearing browser/site data removes records unless the user exported them.
+- Encrypted archive passphrases cannot be recovered by design.
+- Very long histories can span more than one physical printed page.
+- HEIC preview depends on browser support; HEIC files still store and export.
