@@ -69,3 +69,17 @@ test('renders direct legal routes with one heading and a main landmark', async (
   await expect(page.locator('main')).toHaveCount(1);
   await expect(page.getByText('Your records stay yours.')).toBeVisible();
 });
+
+test('captures a returned license, verifies it, and removes it from the URL', async ({ page }) => {
+  await page.route('https://api.sociobot.in/api/v1/products/home-care-evidence/verify?*', route => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ valid: true, reason: 'ok', expires_at: null })
+  }));
+  await page.goto('/?license=verified-test-token');
+  await expect(page).toHaveURL('/');
+  await page.getByRole('button', { name: 'Data & license' }).click();
+  await expect(page.getByText('Unlimited is active.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Buy Unlimited — $29' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/home-care-evidence/checkout');
+  expect(await page.evaluate(() => localStorage.getItem('sb_license:home-care-evidence'))).toBe('verified-test-token');
+});

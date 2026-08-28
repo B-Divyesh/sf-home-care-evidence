@@ -11,8 +11,11 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test"
   },
+  "overrides": {
+    "playwright-core": "1.58.2"
+  },
   "devDependencies": {
-    "@axe-core/playwright": "^4.10.2",
+    "@axe-core/playwright": "4.10.2",
     "@playwright/test": "1.58.2",
     "@types/node": "^24.3.0",
     "typescript": "^5.9.2",

@@ -4,6 +4,6 @@
   <rect x="76" y="82" width="360" height="348" rx="36" fill="#f3ecd8" stroke="#d7b96e" stroke-width="16"/>
   <path d="M142 253 256 154l114 99v112H142Z" fill="#23564e" stroke="#17211f" stroke-width="14" stroke-linejoin="round"/>
   <path d="M219 365v-85h74v85" fill="#f3ecd8" stroke="#17211f" stroke-width="14"/>
-  <circle cx="364" cy="142" r="36" fill="#c94f2d" stroke="#17211f" stroke-width="12"/>
+  <circle cx="364" cy="142" r="36" fill="#b64024" stroke="#17211f" stroke-width="12"/>
   <path d="m348 142 11 11 22-26" fill="none" stroke="#fff9e8" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

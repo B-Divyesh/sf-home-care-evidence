@@ -188,7 +188,10 @@ function query<T extends Element>(selector: string): T {
 
 function openDialog(id: string): void { query<HTMLDialogElement>(`#${id}`).showModal(); }
 function closeDialog(id: string): void { query<HTMLDialogElement>(`#${id}`).close(); }
-function today(): string { return new Date().toISOString().slice(0, 10); }
+function today(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
 
 function openRecordDialog(record?: MaintenanceRecord): void {
   if (!record && !unlocked && records.length >= FREE_RECORD_LIMIT) {

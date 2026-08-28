@@ -74,7 +74,7 @@ export function nextDue(record: MaintenanceRecord): string | null {
 export function dueStatus(record: MaintenanceRecord, today = new Date()): { kind: DueKind; label: string; due: string | null } {
   const due = nextDue(record);
   if (!due) return { kind: 'unscheduled', label: 'No schedule', due: null };
-  const todayKey = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const todayKey = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
   const days = Math.ceil((utcDate(due).getTime() - todayKey.getTime()) / 86_400_000);
   if (days < 0) return { kind: 'overdue', label: `${Math.abs(days)} day${Math.abs(days) === 1 ? '' : 's'} overdue`, due };
   if (days <= 30) return { kind: 'soon', label: days === 0 ? 'Due today' : `Due in ${days} day${days === 1 ? '' : 's'}`, due };
