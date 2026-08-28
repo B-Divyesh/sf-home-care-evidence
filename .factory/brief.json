@@ -1,0 +1,12 @@
+{
+  "slug": "home-care-evidence",
+  "title": "Home Care Evidence",
+  "territory": "utilities",
+  "user": "A homeowner turning an inspection finding or completed repair into a repeatable maintenance record that another household member can understand years later.",
+  "current_workaround": "Keep an inspection PDF, scattered photos, invoices, calendar reminders, and a vague to-do item in different locations.",
+  "smallest_useful_product": "Local PWA with a maintenance card containing the observed issue, photos, vendor/DIY note, receipt attachment, due interval, and printable one-page history.",
+  "success_measure": "In six months, pilot households can retrieve proof and the next due date for 90% of tracked home-care items in under one minute.",
+  "artifact_class": "pwa-offline",
+  "monetization": "one-time",
+  "constraints": "Attachments stay on device unless explicitly exported; encrypt exported archive option; no safety, building-code, or professional repair advice."
+}

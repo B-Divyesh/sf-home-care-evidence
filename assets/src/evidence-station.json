@@ -1,0 +1,8 @@
+{
+  "generator": "Azure AI Foundry factory image deployment via /opt/fleet/lib/gen-image.sh",
+  "date": "2026-08-28",
+  "size": "1536x1024",
+  "quality": "high",
+  "prompt": "Use case: stylized-concept. Asset type: PWA home-screen contextual illustration. A carefully arranged tabletop home-maintenance evidence station in the visual language of a mid-century instrument panel: miniature house cutaway, blank cream service card, instant-photo sleeve with abstract image shapes, receipt envelope, brass date dial, small screwdriver and measuring tape. Powder-coated oxidized-green steel, warm enamel cream paper, walnut, muted brass, one signal-orange indicator lamp, subtle paper grain. Soft directional workshop window light with a controlled long shadow, precise three-quarter orthographic composition, landscape 3:2, object cluster on the right with generous quiet cream negative space on the left, readable at small size. Editorial gouache and screen-print texture with clean geometry. No people, hands, text, letters, numbers, logos, watermark, trademarks, brands, generic gradient, glossy interface, futuristic screen, unsafe repair scene, damaged house, clutter.",
+  "review": "Accepted: no people, logos, accidental text, watermarks, unsafe activity, or misleading interface. Abstract receipt marks and dial ticks are non-semantic; material and palette match the visual thesis."
+}
