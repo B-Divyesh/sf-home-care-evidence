@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 
 test('@claim:card-records creates a durable maintenance card and adds service history', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: 'Keep home repair proof ready' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Turn the next finished job into a durable record.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Record a completed home repair' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Add your first card' }).click();
   await page.getByLabel('Card name *').fill('Water heater flush');
@@ -55,6 +55,17 @@ test('@claim:offline-reload restores the demo and local records while offline', 
   await page.reload();
   await expect(page.getByText('Offline mode — records and attachments still save on this device.')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Water heater flush' })).toBeVisible();
+  await page.locator('[data-record-id="demo-water-heater"]').getByRole('button', { name: 'Add completed work' }).click();
+  await page.locator('#service-form').getByLabel('Completed date *').fill('2026-09-01');
+  await page.locator('#service-form').getByLabel('What was done? *').fill('Saved this note and receipt while the device was offline.');
+  await page.locator('#service-form').getByLabel('Receipt or invoice').setInputFiles({ name: 'offline-receipt.pdf', mimeType: 'application/pdf', buffer: Buffer.from('offline receipt proof') });
+  await page.getByRole('button', { name: 'Add to history' }).click();
+  await expect(page.getByText('Completed work added. The next due date has been recalculated.')).toBeVisible();
+  await page.reload();
+  const offlineCard = page.locator('[data-record-id="demo-water-heater"]');
+  await offlineCard.getByText('View evidence & history').click();
+  await expect(offlineCard.getByText('Saved this note and receipt while the device was offline.')).toBeVisible();
+  await expect(offlineCard.getByText('offline-receipt.pdf')).toBeVisible();
   await context.setOffline(false);
 });
 
@@ -63,7 +74,7 @@ test('renders direct legal routes with one heading and a main landmark', async (
   await expect(page).toHaveTitle(/Privacy/);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.locator('main')).toHaveCount(1);
-  await expect(page.getByText('Your records stay yours.')).toBeVisible();
+  await expect(page.getByText('Control your stored records')).toBeVisible();
 });
 
 test('captures a returned license, verifies it, and removes it from the URL', async ({ page }) => {
@@ -76,7 +87,7 @@ test('captures a returned license, verifies it, and removes it from the URL', as
   await expect(page).toHaveURL('/');
   await page.getByRole('button', { name: 'Data & license' }).click();
   await expect(page.getByText('Unlimited is active.')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Buy Unlimited — $29' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/home-care-evidence/checkout');
+  await expect(page.locator('#settings-dialog').getByRole('link', { name: 'Buy Unlimited — $29' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/home-care-evidence/checkout');
   expect(await page.evaluate(() => localStorage.getItem('sb_license:home-care-evidence'))).toBe('verified-test-token');
 });
 
@@ -142,7 +153,7 @@ test('rejects a malformed branded archive before confirmation and preserves vali
   await expect(page.getByRole('heading', { name: 'Known good card' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Known good card' })).toBeVisible();
-  await expect(page.getByText('The evidence drawer did not open')).toHaveCount(0);
+  await expect(page.getByText('Your records did not open')).toHaveCount(0);
 });
 
 test('shows a job-focused first screen and a one-click isolated demo', async ({ page }) => {
@@ -157,6 +168,22 @@ test('shows a job-focused first screen and a one-click isolated demo', async ({ 
   await expect(page.locator('.record-card')).toHaveCount(3);
 });
 
+test('shows the exact paid offer after scope information and uses direct labels', async ({ page }) => {
+  const scope = page.getByRole('heading', { level: 2, name: 'A record, not repair advice' }).locator('..');
+  const paid = page.getByRole('heading', { level: 2, name: 'Unlimited costs $29 once' }).locator('..');
+  const footer = page.getByRole('contentinfo');
+  const [scopeBox, paidBox, footerBox] = await Promise.all([scope.boundingBox(), paid.boundingBox(), footer.boundingBox()]);
+  expect(scopeBox).not.toBeNull();
+  expect(paidBox).not.toBeNull();
+  expect(footerBox).not.toBeNull();
+  expect(scopeBox!.y).toBeLessThan(paidBox!.y);
+  expect(paidBox!.y).toBeLessThan(footerBox!.y);
+  await expect(paid.getByText('Unlimited removes the 8-card limit and adds encrypted archives.')).toBeVisible();
+  await expect(paid.getByRole('link', { name: 'Buy Unlimited — $29' })).toHaveAttribute('href', 'https://api.sociobot.in/api/v1/products/home-care-evidence/checkout');
+  const visibleCopy = await page.locator('body').innerText();
+  expect(visibleCopy).not.toMatch(/Evidence drawer|Data bay|privacy plate|Drawer 404|unit 01/i);
+});
+
 test('keeps footer links touch sized at 390px and renders a designed not-found page', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const footer = page.getByRole('contentinfo');
@@ -168,8 +195,23 @@ test('keeps footer links touch sized at 390px and renders a designed not-found p
   }
   await page.goto('/not-a-real-route');
   await expect(page).toHaveTitle('Page not found — Home Care Evidence');
-  await expect(page.getByRole('heading', { level: 1, name: 'This page is not in the logbook.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'This page was not found' })).toBeVisible();
   await expect(page.locator('main')).toHaveCount(1);
+});
+
+test('moves focus to each route heading and restores routes with browser history', async ({ page }) => {
+  await page.getByRole('link', { name: 'Privacy', exact: true }).first().click();
+  await expect(page).toHaveURL('/privacy');
+  await expect(page).toHaveTitle('Privacy — Home Care Evidence');
+  await expect(page.getByRole('heading', { level: 1, name: 'Control your stored records' })).toBeFocused();
+  await expect(page.locator('#route-status')).toHaveText('Control your stored records');
+
+  await page.getByRole('link', { name: 'Demo', exact: true }).click();
+  await expect(page).toHaveURL('/demo');
+  await expect(page.getByRole('heading', { level: 1, name: 'Keep home repair proof ready' })).toBeFocused();
+  await page.goBack();
+  await expect(page).toHaveURL('/privacy');
+  await expect(page.getByRole('heading', { level: 1, name: 'Control your stored records' })).toBeFocused();
 });
 
 test('supports keyboard-only use, reduced motion, and populated accessibility', async ({ page }) => {

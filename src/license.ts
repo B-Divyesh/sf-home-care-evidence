@@ -39,6 +39,11 @@ export function getStoredLicense(): string {
   return localStorage.getItem(licenseKey()) ?? '';
 }
 
+export function removeStoredLicense(): void {
+  localStorage.removeItem(licenseKey());
+  localStorage.removeItem(verdictKey());
+}
+
 export async function verifyLicense(force = false): Promise<{ valid: boolean; message: string }> {
   const license = getStoredLicense();
   if (!license) return { valid: false, message: 'No license is saved on this device.' };

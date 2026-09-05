@@ -1,7 +1,7 @@
 import './styles.css';
 import { exportEncryptedArchive, exportOpenArchive, readArchive } from './archive';
 import { getRecords, removeRecord, replaceRecords, saveRecord, useDemoDatabase } from './db';
-import { CHECKOUT_URL, captureReturnedLicense, hasCachedUnlock, storeAndVerifyLicense, useDemoLicenseStorage, verifyLicense } from './license';
+import { CHECKOUT_URL, captureReturnedLicense, hasCachedUnlock, removeStoredLicense, storeAndVerifyLicense, useDemoLicenseStorage, verifyLicense } from './license';
 import { createId, dueStatus, escapeHtml, formatDate, latestEvent, type EvidenceAttachment, type IntervalUnit, type MaintenanceRecord, type ServiceEvent, type WorkType } from './domain';
 import { sampleRecords } from './sample';
 
@@ -13,8 +13,10 @@ let unlocked = false;
 let searchText = '';
 let statusFilter = 'all';
 let objectUrls: string[] = [];
-const path = location.pathname.replace(/\/$/, '') || '/';
-const demoMode = path === '/demo' || (path === '/' && new URL(location.href).searchParams.get('demo') === '1');
+let path = '/';
+let demoMode = false;
+let routeListeners: AbortController | undefined;
+let renderedRouteKey = '';
 
 function setMetadata(title: string, description: string, route: string): void {
   document.title = title;
@@ -28,48 +30,96 @@ function setMetadata(title: string, description: string, route: string): void {
 }
 
 function footer(): string {
-  return `<footer class="site-footer"><span>Keep home repair proof and due dates together.</span><nav aria-label="Site information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>Generated illustration</span><span>Built by Param Factory</span><span>Version 1.0 · repair 2</span></nav></footer>`;
+  return `<footer class="site-footer"><span>Keep home repair proof and due dates together.</span><nav aria-label="Site information"><a href="/privacy">Privacy</a><a href="/terms">Terms</a><span>Original generated illustration</span><span>Built by Param Factory</span><span>Version 1.1 · repair 3</span></nav></footer>`;
 }
 
 function legalPage(kind: 'privacy' | 'terms'): void {
   const privacy = kind === 'privacy';
   setMetadata(`${privacy ? 'Privacy' : 'Terms'} — Home Care Evidence`, privacy ? 'How Home Care Evidence stores records, attachments, exports, and license details.' : 'Terms for using the Home Care Evidence local maintenance logbook.', `/${kind}`);
   app.innerHTML = `
+    <div id="route-status" class="visually-hidden" role="status" aria-live="polite"></div>
     <header class="legal-header"><a class="brand-mini" href="/" aria-label="Home Care Evidence home"><span aria-hidden="true">⌂</span> Home Care Evidence</a><nav aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav></header>
     <main id="main" class="legal-page">
-      <p class="eyebrow">Household logbook / ${privacy ? 'privacy plate' : 'terms plate'}</p>
-      <h1>${privacy ? 'Your records stay yours.' : 'Plain terms for a durable record.'}</h1>
+      <p class="eyebrow">${privacy ? 'Privacy' : 'Terms'}</p>
+      <h1 tabindex="-1">${privacy ? 'Control your stored records' : 'Terms for keeping maintenance records'}</h1>
       <p class="legal-lede">Effective August 28, 2026</p>
       ${privacy ? `
         <h2>Data on this device</h2><p>Maintenance cards, notes, dates, photos, receipts, and your license token are stored locally in your browser. We do not receive or sync those records. Removing site data or uninstalling without an export can erase them.</p>
         <h2>Exports and attachments</h2><p>Nothing leaves your device unless you choose Export, follow the hosted purchase link, or verify a license. Open JSON exports include the attachments you added. Encrypted archives use AES-GCM encryption in your browser; we never receive the passphrase and cannot recover it.</p>
         <h2>Purchase verification</h2><p>If you buy or restore Unlimited, the license token is sent to the Sociobot billing API for verification at most once per day. Sociobot/Dodo is the merchant of record and handles payment information. This app includes no analytics, advertising, trackers, or third-party runtime scripts.</p>
-        <h2>Your controls</h2><p>You can export all records, delete individual cards, clear browser site data, or remove a stored license at any time. For privacy questions, contact <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p>
+        <h2>Your controls</h2><p>You can export all records, delete individual cards, clear browser site data, or remove a saved license. For privacy questions, contact <a href="mailto:privacy@sociobot.in">privacy@sociobot.in</a>.</p>
       ` : `
         <h2>What this tool is</h2><p>Home Care Evidence is a local recordkeeping utility. It helps you preserve observations, work notes, proof, and a calculated next-due date. It does not inspect a home, diagnose a defect, verify a repair, or provide safety, building-code, legal, financial, or professional repair advice.</p>
         <h2>Your responsibility</h2><p>You are responsible for the accuracy of records, backup exports, archive passphrases, and deciding when to consult a qualified professional. Due dates are calculated only from the interval you enter.</p>
         <h2>Unlimited purchase</h2><p>Unlimited is a $29 one-time license for unlimited maintenance cards and encrypted archives. The free tier remains useful with up to eight cards, printing, service history, attachments, and open exports. Sociobot/Dodo is the merchant of record. Refunds are handled there and revoke the associated license.</p>
-        <h2>Availability and liability</h2><p>The software is provided “as is” without warranties. To the extent permitted by law, its authors are not liable for lost records, missed maintenance, property damage, or decisions made from these records. Export backups regularly. These terms are governed by applicable law.</p>
+        <h2>Availability and liability</h2><p>The software is provided “as is” without warranties. Applicable law may limit liability for lost records, missed maintenance, property damage, or decisions based on these records. Export backups regularly. These terms are governed by applicable law.</p>
       `}
       <p><a class="button secondary" href="/">Return to your logbook</a></p>
     </main>
     ${footer()}`;
 }
 
-if (path === '/privacy' || path === '/terms') {
-  legalPage(path.slice(1) as 'privacy' | 'terms');
-} else if (path !== '/' && path !== '/demo') {
-  notFoundPage();
-} else {
-  useDemoDatabase(demoMode);
-  useDemoLicenseStorage(demoMode);
-  void start();
+function currentRoute(): string {
+  return location.pathname.replace(/\/$/, '') || '/';
 }
+
+function focusRouteHeading(): void {
+  const heading = document.querySelector<HTMLHeadingElement>('h1');
+  if (!heading) return;
+  heading.tabIndex = -1;
+  heading.focus({ preventScroll: true });
+  const status = document.querySelector<HTMLElement>('#route-status');
+  if (status) status.textContent = heading.textContent ?? '';
+}
+
+async function renderRoute(moveFocus = false): Promise<void> {
+  routeListeners?.abort();
+  routeListeners = undefined;
+  path = currentRoute();
+  renderedRouteKey = `${location.pathname}${location.search}`;
+  demoMode = path === '/demo' || (path === '/' && new URL(location.href).searchParams.get('demo') === '1');
+  records = [];
+  searchText = '';
+  statusFilter = 'all';
+  objectUrls.forEach(url => URL.revokeObjectURL(url));
+  objectUrls = [];
+  if (path === '/privacy' || path === '/terms') {
+    legalPage(path.slice(1) as 'privacy' | 'terms');
+  } else if (path !== '/' && path !== '/demo') {
+    notFoundPage();
+  } else {
+    useDemoDatabase(demoMode);
+    useDemoLicenseStorage(demoMode);
+    await start();
+  }
+  window.scrollTo({ top: 0, behavior: 'auto' });
+  if (moveFocus) focusRouteHeading();
+}
+
+function navigate(url: URL): void {
+  history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  void renderRoute(true);
+}
+
+document.addEventListener('click', event => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a[href]');
+  if (!link || link.target || link.hasAttribute('download')) return;
+  const url = new URL(link.href, location.href);
+  if (url.origin !== location.origin || url.hash && url.pathname === location.pathname && url.search === location.search) return;
+  event.preventDefault();
+  navigate(url);
+});
+window.addEventListener('popstate', () => {
+  if (`${location.pathname}${location.search}` === renderedRouteKey) return;
+  void renderRoute(true);
+});
+void renderRoute();
 
 function notFoundPage(): void {
   setMetadata('Page not found — Home Care Evidence', 'This Home Care Evidence page does not exist. Return to the local maintenance logbook.', location.pathname);
   app.innerHTML = `<header class="legal-header"><a class="brand-mini" href="/" aria-label="Home Care Evidence home"><span aria-hidden="true">⌂</span> Home Care Evidence</a><nav aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav></header>
-    <main id="main" class="not-found"><p class="eyebrow">Drawer 404 / no record found</p><h1>This page is not in the logbook.</h1><p>The address may be old or incomplete. Your saved maintenance cards have not changed.</p><a class="button primary" href="/">Return to your logbook</a></main>${footer()}`;
+    <div id="route-status" class="visually-hidden" role="status" aria-live="polite"></div><main id="main" class="not-found"><p class="eyebrow">Page not found</p><h1 tabindex="-1">This page was not found</h1><p>Check the address or return to your maintenance records. Your saved cards have not changed.</p><a class="button primary" href="/">Return to your records</a></main>${footer()}`;
 }
 
 async function start(): Promise<void> {
@@ -101,15 +151,16 @@ async function start(): Promise<void> {
 
 function renderShell(): void {
   app.innerHTML = `
+    <div id="route-status" class="visually-hidden" role="status" aria-live="polite"></div>
     ${demoMode ? `<div class="demo-banner" role="status"><strong>Demo — sample data, nothing is saved</strong><span>Changes stay in this sample logbook only.</span><div><button class="banner-action" type="button" data-action="reset-demo">Reset demo</button><button class="banner-action" type="button" data-action="start-real">Start for real</button></div></div>` : ''}
     <div class="connection-banner" id="connection-banner" role="status" hidden><span class="lamp" aria-hidden="true"></span> Offline mode — records and attachments still save on this device.</div>
     <header class="topbar">
-      <a class="wordmark" href="/" aria-label="Home Care Evidence home"><span class="house-mark" aria-hidden="true"><span></span></span><span><span class="eyebrow">Household service register / unit 01</span><span class="product-name">Home Care Evidence</span></span></a>
+      <a class="wordmark" href="/" aria-label="Home Care Evidence home"><span class="house-mark" aria-hidden="true"><span></span></span><span><span class="eyebrow">Local maintenance records</span><span class="product-name">Home Care Evidence</span></span></a>
       <div class="header-tools"><nav class="primary-nav" aria-label="Primary"><a href="/demo">Demo</a><a href="/privacy">Privacy</a></nav><div class="header-actions"><button class="button quiet" type="button" data-action="open-settings">Data &amp; license</button><button class="button primary" type="button" data-action="new-record"><span aria-hidden="true">＋</span> Add card</button></div></div>
     </header>
     <main id="main" tabindex="-1">
       <section class="overview" aria-labelledby="page-title">
-        <div class="overview-copy"><p class="eyebrow">Reason → proof → next date</p><h1 id="page-title">Keep home repair proof ready</h1><p>For homeowners who need household members to understand past work and the next due date.</p><div class="hero-action"><a class="button primary" href="/demo">Try it with sample data</a><span>Opens three editable sample cards.</span></div><ul class="plain-facts"><li>Works offline after your first visit.</li><li>Records stay on this device unless you export.</li><li>Free for 8 cards. Unlimited costs $29 once.</li></ul></div>
+        <div class="overview-copy"><p class="eyebrow">Home maintenance records</p><h1 id="page-title" tabindex="-1">Keep home repair proof ready</h1><p>For homeowners who need household members to understand past work and the next due date.</p><div class="hero-action"><a class="button primary" href="/demo">Try it with sample data</a><span>Opens three editable sample cards.</span></div><ul class="plain-facts"><li>Works offline after your first visit.</li><li>Records stay on this device unless you export.</li><li>Free for 8 cards. Unlimited costs $29 once.</li></ul></div>
         <div class="gauge-bank" aria-label="Maintenance overview">
           <div class="gauge"><span class="gauge-label">Cards</span><strong id="stat-total">—</strong><span>on device</span></div>
           <div class="gauge"><span class="gauge-label">Due soon</span><strong id="stat-soon">—</strong><span>30 days</span></div>
@@ -117,15 +168,16 @@ function renderShell(): void {
         </div>
       </section>
       <section class="ledger" aria-labelledby="ledger-title">
-        <div class="ledger-heading"><div><p class="eyebrow">Evidence drawer</p><h2 id="ledger-title">Maintenance cards</h2></div><p id="storage-note">Loading the on-device logbook…</p></div>
+        <div class="ledger-heading"><div><p class="eyebrow">Your saved records</p><h2 id="ledger-title">Maintenance cards</h2></div><p id="storage-note">Loading your on-device records…</p></div>
         <div class="filter-panel" aria-label="Filter maintenance cards">
           <label class="search-field"><span>Find a card</span><input id="search" type="search" autocomplete="off" placeholder="Roof, furnace, kitchen…" /></label>
           <label><span>Schedule status</span><select id="status-filter"><option value="all">All cards</option><option value="overdue">Overdue</option><option value="soon">Due within 30 days</option><option value="current">On schedule</option><option value="unscheduled">No schedule</option></select></label>
         </div>
-        <div id="records" class="record-list" aria-live="polite" aria-busy="true"><div class="loading-state"><span class="spinner" aria-hidden="true"></span><p>Opening the local evidence drawer…</p></div></div>
+        <div id="records" class="record-list" aria-live="polite" aria-busy="true"><div class="loading-state"><span class="spinner" aria-hidden="true"></span><p>Opening your local records…</p></div></div>
       </section>
-      <section class="how-it-works" aria-labelledby="how-title"><p class="eyebrow">Three entries / one record</p><h2 id="how-title">How the logbook works</h2><ol><li><strong>Record the reason.</strong><span>Save the finding and the part of the home it affects.</span></li><li><strong>Attach the proof.</strong><span>Keep work notes, photos, and the receipt with the card.</span></li><li><strong>Check the next date.</strong><span>The latest completed work sets the next due date.</span></li></ol></section>
+      <section class="how-it-works" aria-labelledby="how-title"><p class="eyebrow">Three steps</p><h2 id="how-title">How the logbook works</h2><ol><li><strong>Record the reason.</strong><span>Save the finding and the part of the home it affects.</span></li><li><strong>Attach the proof.</strong><span>Keep work notes, photos, and the receipt with the card.</span></li><li><strong>Check the next date.</strong><span>The latest completed work sets the next due date.</span></li></ol></section>
       <section class="scope-note" aria-labelledby="scope-title"><h2 id="scope-title">A record, not repair advice</h2><p>This tool stores what you enter. It does not inspect, diagnose, or verify home repairs.</p></section>
+      <section class="paid-tier" aria-labelledby="paid-title"><p class="eyebrow">One-time license</p><h2 id="paid-title">Unlimited costs $29 once</h2><p>Unlimited removes the 8-card limit and adds encrypted archives. Printing, attachments, history, and open exports stay free.</p><div class="button-row"><a class="button primary" href="${CHECKOUT_URL}">Buy Unlimited — $29</a><button class="button quiet" type="button" data-action="open-settings">Restore a license</button></div><p class="fine-print">Sociobot/Dodo handles payment and refunds. Read the <a href="/terms">purchase terms</a>.</p></section>
     </main>
     ${footer()}
     ${recordDialogTemplate()}
@@ -173,20 +225,23 @@ function serviceDialogTemplate(): string {
 }
 
 function settingsDialogTemplate(): string {
-  return `<dialog id="settings-dialog" class="sheet-dialog settings" aria-labelledby="settings-title"><div class="dialog-plate"><div><p class="eyebrow">Data bay / license plate</p><h2 id="settings-title">Own your logbook</h2></div><button class="icon-button" type="button" data-action="close-settings" aria-label="Close data and license settings">×</button></div>
+  return `<dialog id="settings-dialog" class="sheet-dialog settings" aria-labelledby="settings-title"><div class="dialog-plate"><div><p class="eyebrow">Data and license</p><h2 id="settings-title">Manage your records</h2></div><button class="icon-button" type="button" data-action="close-settings" aria-label="Close data and license settings">×</button></div>
     <section><h3>Backup and move records</h3><p>Exports include every note and attachment. Keep exported files somewhere you trust.</p><div class="button-row"><button class="button secondary" type="button" data-action="export-open">Export open JSON</button><button class="button secondary paid-feature" type="button" data-action="export-encrypted">Export encrypted archive <span class="paid-badge">Unlimited</span></button></div>
       <label><span>Archive passphrase</span><input id="archive-passphrase" type="password" minlength="10" autocomplete="new-password" placeholder="10+ characters for encrypted files" /><small>Required only for encrypted export or import. There is no recovery.</small></label>
       <label><span>Import a backup</span><input id="archive-file" type="file" accept=".json,.hce,application/json,application/octet-stream" /></label><button class="button quiet" type="button" data-action="import">Replace logbook from file</button>
     </section>
     <section class="license-panel"><div class="license-copy"><p class="eyebrow">One-time license</p><h3>Unlimited · $29 once</h3><p>Keep unlimited maintenance cards and create password-encrypted archives. The free logbook includes 8 cards, full service history, attachments, printing, and open exports.</p></div>
       <div><p class="license-state" id="license-state"><span class="lamp" aria-hidden="true"></span><span>${unlocked ? 'Unlimited is active.' : 'Free logbook — 8 card limit.'}</span></p><a class="button primary" href="${CHECKOUT_URL}">Buy Unlimited — $29</a></div>
-      <form id="license-form"><label><span>Have a license? Paste it here</span><input name="license" autocomplete="off" required /></label><button class="button quiet" type="submit">Verify license</button></form><p class="fine-print">One-time purchase. Sociobot/Dodo is the merchant of record and handles refunds. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+      <form id="license-form"><label><span>Have a license? Paste it here</span><input name="license" autocomplete="off" required /></label><button class="button quiet" type="submit">Verify license</button></form><button class="button text-action" type="button" data-action="remove-license">Remove saved license</button><p class="fine-print">One-time purchase. Sociobot/Dodo is the merchant of record and handles refunds. <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
     </section></dialog>`;
 }
 
 function addEventListeners(): void {
-  window.addEventListener('online', setOnlineState);
-  window.addEventListener('offline', setOnlineState);
+  const controller = new AbortController();
+  routeListeners = controller;
+  const options = { signal: controller.signal };
+  window.addEventListener('online', setOnlineState, options);
+  window.addEventListener('offline', setOnlineState, options);
   document.addEventListener('click', event => {
     const target = (event.target as HTMLElement).closest<HTMLElement>('[data-action]');
     if (!target) return;
@@ -204,17 +259,19 @@ function addEventListeners(): void {
     if (action === 'export-open') void exportOpen();
     if (action === 'export-encrypted') void exportEncrypted();
     if (action === 'import') void importRecords();
+    if (action === 'remove-license') removeLicense();
+    if (action === 'retry-load') void renderRoute();
     if (action === 'reset-demo' && demoMode) void resetDemo();
     if (action === 'start-real' && demoMode) void startReal();
     if (action === 'dismiss-toast') hideToast();
     if (action === 'reload') location.reload();
-  });
-  query<HTMLInputElement>('#search').addEventListener('input', event => { searchText = (event.target as HTMLInputElement).value.toLowerCase(); renderRecords(); });
-  query<HTMLSelectElement>('#status-filter').addEventListener('change', event => { statusFilter = (event.target as HTMLSelectElement).value; renderRecords(); });
-  query<HTMLFormElement>('#record-form').addEventListener('submit', event => void submitRecord(event));
-  query<HTMLFormElement>('#service-form').addEventListener('submit', event => void submitService(event));
-  query<HTMLFormElement>('#license-form').addEventListener('submit', event => void submitLicense(event));
-  document.querySelectorAll<HTMLDialogElement>('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }));
+  }, options);
+  query<HTMLInputElement>('#search').addEventListener('input', event => { searchText = (event.target as HTMLInputElement).value.toLowerCase(); renderRecords(); }, options);
+  query<HTMLSelectElement>('#status-filter').addEventListener('change', event => { statusFilter = (event.target as HTMLSelectElement).value; renderRecords(); }, options);
+  query<HTMLFormElement>('#record-form').addEventListener('submit', event => void submitRecord(event), options);
+  query<HTMLFormElement>('#service-form').addEventListener('submit', event => void submitService(event), options);
+  query<HTMLFormElement>('#license-form').addEventListener('submit', event => void submitLicense(event), options);
+  document.querySelectorAll<HTMLDialogElement>('dialog').forEach(dialog => dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); }, options));
 }
 
 async function resetDemo(): Promise<void> {
@@ -232,7 +289,7 @@ async function startReal(): Promise<void> {
   await replaceRecords([]);
   localStorage.removeItem('demo:sb_license:home-care-evidence');
   localStorage.removeItem('demo:sb_license_verdict:home-care-evidence');
-  location.assign('/');
+  navigate(new URL('/', location.origin));
 }
 
 function query<T extends Element>(selector: string): T {
@@ -366,7 +423,7 @@ function setFormError(id: string, message: string): void {
 }
 
 function renderLoadError(message: string): void {
-  query('#records').innerHTML = `<div class="error-state"><span aria-hidden="true">!</span><h3>The evidence drawer did not open</h3><p>${escapeHtml(message)}</p><button class="button secondary" type="button" onclick="location.reload()">Try again</button></div>`;
+  query('#records').innerHTML = `<div class="error-state"><span aria-hidden="true">!</span><h3>Your records did not open</h3><p>${escapeHtml(message)}</p><button class="button secondary" type="button" data-action="retry-load">Try again</button></div>`;
   query('#records').setAttribute('aria-busy', 'false');
 }
 
@@ -390,7 +447,7 @@ function renderRecords(): void {
 }
 
 function emptyState(): string {
-  return `<div class="empty-state"><div class="empty-copy"><span class="index-tag">Start here · card 001</span><h3>Turn the next finished job into a durable record.</h3><p>Add one finding, what was done, and when it is due again. Photos and receipts stay with the card—even offline.</p><ol><li><span>1</span>Describe the reason</li><li><span>2</span>Attach the proof</li><li><span>3</span>Set the repeat interval</li></ol><button class="button primary" type="button" data-action="new-record">Add your first card</button></div><picture><source media="(max-width: 700px)" srcset="/assets/evidence-station-640.webp" /><img src="/assets/evidence-station-960.webp" width="960" height="640" alt="Illustrated mid-century service station with a cutaway home, blank maintenance card, photo sleeve, receipt envelope, date dial, and hand tools" decoding="async" fetchpriority="high" /></picture></div>`;
+  return `<div class="empty-state"><div class="empty-copy"><span class="index-tag">No maintenance cards yet</span><h3>Record a completed home repair</h3><p>Add the finding, completed work, and next due date. Photos and receipts stay with the card while offline.</p><ol><li><span>1</span>Describe the reason</li><li><span>2</span>Attach the proof</li><li><span>3</span>Set the repeat interval</li></ol><button class="button primary" type="button" data-action="new-record">Add your first card</button></div><picture><source media="(max-width: 700px)" srcset="/assets/evidence-station-640.webp" /><img src="/assets/evidence-station-960.webp" width="960" height="640" alt="Maintenance card, photo sleeve, receipt envelope, date dial, and home tools arranged on a workbench" decoding="async" fetchpriority="high" /></picture></div>`;
 }
 
 function recordCard(record: MaintenanceRecord): string {
@@ -467,6 +524,16 @@ async function submitLicense(event: SubmitEvent): Promise<void> {
   unlocked = result.valid;
   updateLicenseUI(result.message);
   renderRecords();
+}
+
+function removeLicense(): void {
+  removeStoredLicense();
+  unlocked = false;
+  const input = document.querySelector<HTMLInputElement>('#license-form input[name="license"]');
+  if (input) input.value = '';
+  updateLicenseUI('No license is saved on this device.');
+  renderRecords();
+  showToast('Saved license removed. Your maintenance cards were not changed.');
 }
 
 function updateLicenseUI(message: string): void {

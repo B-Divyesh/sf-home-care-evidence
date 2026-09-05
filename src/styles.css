@@ -28,6 +28,7 @@ button { color: inherit; }
 a { color: var(--panel); text-underline-offset: 3px; }
 img { max-width: 100%; }
 [hidden] { display: none !important; }
+.visually-hidden { position: absolute !important; width: 1px !important; height: 1px !important; padding: 0 !important; margin: -1px !important; overflow: hidden !important; clip: rect(0, 0, 0, 0) !important; white-space: nowrap !important; border: 0 !important; }
 :focus-visible { outline: 3px solid var(--orange); outline-offset: 3px; }
 .skip-link { position: fixed; z-index: 100; left: 1rem; top: .5rem; padding: .7rem 1rem; background: var(--cream); color: var(--ink); transform: translateY(-160%); }
 .skip-link:focus { transform: translateY(0); }
@@ -149,7 +150,7 @@ summary span { color: var(--muted); font-size: .8rem; }
 .card-actions .button { min-height: 44px; padding: .55rem .75rem; }
 .text-danger { min-height: 44px; margin-left: auto; border: 0; background: transparent; color: var(--danger); text-decoration: underline; cursor: pointer; }
 .how-it-works { padding: 4rem 0 2rem; }
-.how-it-works h2, .scope-note h2 { font-size: clamp(1.8rem, 3vw, 2.7rem); }
+.how-it-works h2, .scope-note h2, .paid-tier h2 { font-size: clamp(1.8rem, 3vw, 2.7rem); }
 .how-it-works ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; padding: 0; list-style: none; counter-reset: steps; }
 .how-it-works li { min-width: 0; padding: 1.25rem; background: var(--cream); border-top: 5px solid var(--brass); counter-increment: steps; }
 .how-it-works li::before { content: "0" counter(steps); display: block; color: var(--orange); font: 700 1.35rem var(--display); }
@@ -157,6 +158,11 @@ summary span { color: var(--muted); font-size: .8rem; }
 .how-it-works strong { margin: .45rem 0; font-family: var(--display); font-size: 1.2rem; }
 .how-it-works span { color: var(--muted); }
 .scope-note { max-width: 760px; padding: 2rem 0; }
+.paid-tier { margin-top: 1rem; padding: 2rem; color: var(--cream); background: var(--panel); border-top: 7px solid var(--brass); box-shadow: 8px 8px 0 rgba(182,64,36,.75); }
+.paid-tier p { color: #e4ece9; }
+.paid-tier .eyebrow { color: #f5daa1; }
+.paid-tier .button.quiet { background: var(--cream); }
+.paid-tier a:not(.button) { color: var(--cream); }
 .site-footer { display: flex; justify-content: space-between; gap: 2rem; padding: 2rem max(3vw,1rem) calc(2rem + env(safe-area-inset-bottom)); color: #d8e1de; background: var(--panel); font-size: .86rem; }
 .site-footer nav { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 .site-footer a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; color: var(--cream); }
@@ -182,6 +188,7 @@ legend { padding: .35rem .75rem; color: var(--cream); background: var(--panel); 
 .settings label { margin-top: 1rem; }
 .license-panel { display: grid; grid-template-columns: 1fr auto; gap: 1rem 2rem; background: #e8dfc7; }
 .license-panel #license-form, .license-panel .fine-print { grid-column: 1 / -1; }
+.license-panel .text-action { grid-column: 1 / -1; justify-self: start; background: transparent; box-shadow: none; text-decoration: underline; }
 .license-panel #license-form { display: grid; grid-template-columns: 1fr auto; align-items: end; gap: .75rem; }
 .license-state { display: flex; align-items: center; margin-top: 0; font: 700 .85rem var(--display); }
 .is-unlocked .license-state .lamp { background: #63a47c; }
