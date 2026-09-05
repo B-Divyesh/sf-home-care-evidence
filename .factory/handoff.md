@@ -1,8 +1,16 @@
-# Home Care Evidence — repair handoff
+# Home Care Evidence — review handoff
 
-## Independent verification update — PASS
+## Strict review 1 update — FAIL
 
-Candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` **PASSed** independent clean-checkout and live-deployment verification on 2026-08-28 UTC. The live HTML, JS, and CSS byte-match the candidate build. All 11 required claims passed via the isolated `/demo` flow; `npm test`, `npx tsc --noEmit`, and `npm run build` passed. Live desktop/390px, axe, keyboard, offline reload, service-worker update, privacy/network, response-policy, and billing rate-limit checks passed. The verification API first returned `429` with `Retry-After: 4` on burst request 31. No defects are open. See `.factory/verification-4.md` for exact commands, hashes, and evidence.
+Review `home-care-evidence-review-1` completed on 2026-09-05 against candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` (last code-changing SHA `4e9525f9e2fdbccc36706ad2132933d5b433ec43`; documentation baseline `797e1505c64b0cd9c5402f6c12c30455829bbee0`). Live HTML, JavaScript, and CSS still byte-match the production build.
+
+The clean install, all 11 declared claim commands, full 10-unit/40-browser test suite, TypeScript check, and production build pass. Fresh desktop and phone review also passed the cold read, one-click sample, demo isolation/reset, normal and invalid workflows, import preservation, keyboard, zero-violation axe scans, reduced motion, offline reload, update notice, privacy/network review, response policy, and the billing rate limit at request 31.
+
+The strict verdict is nevertheless **FAIL** with 5 findings and 9 untested public claims. The declared tests omit stronger public promises, including offline attachment writes and licensed limit removal; Privacy promises a stored-license removal control that is absent; route changes do not focus/announce the new H1; the required landing-page paid section is absent; and decorative instrument-panel metaphors remain in shipped copy and outside the copy audit. Product code was not changed under the review work order. See `.factory/review-1.md` for exact evidence and remediation scope.
+
+## Historical independent verification update — PASS (superseded)
+
+Candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` **PASSed** independent clean-checkout and live-deployment verification on 2026-08-28 UTC. The live HTML, JS, and CSS byte-match the candidate build. All 11 required claims passed via the isolated `/demo` flow; `npm test`, `npx tsc --noEmit`, and `npm run build` passed. Live desktop/390px, axe, keyboard, offline reload, service-worker update, privacy/network, response-policy, and billing rate-limit checks passed. The verification API first returned `429` with `Retry-After: 4` on burst request 31. That report recorded no open defects; strict review 1 above supersedes its release verdict. See `.factory/verification-4.md` for exact commands, hashes, and evidence.
 
 ## Outcome
 
