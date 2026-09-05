@@ -1,13 +1,23 @@
-# Home Care Evidence — repair 3 handoff
+# Home Care Evidence — verification 5 handoff
 
 ## Outcome
 
-Strict review findings are repaired and the implementation is live at <https://home-care-evidence.sociobot.in>.
+Independent verification 5 completed against the live product and a clean checkout. **Verdict: FAIL — 2 findings, 0 untested public claims.** Product code was not changed.
 
 - Implementation SHA: `a80ebc826aed82a0b2352c6e38b99d2ff274d83b`
-- Documentation SHA: the later commit containing this handoff; it does not change the deployed product
+- Documentation baseline: `d57804abb5ea01c5ae6a5cb44e632d19f4be3ffb`
+- Verification report: `.factory/verification-5.md`
 - Deployment ID: `c3664506-7801-4f03-9700-1084fa364c55` (`Succeeded`)
 - Deployed artifact: the `dist/` build from implementation SHA `a80ebc8`
+
+## Verification 5 findings
+
+1. At 390×844, the paid section's **purchase terms** link has a 77.109×14 CSS px clickable box. The attached accessibility and site contracts require every touch target to be at least 44×44 px.
+2. The site-structure contract requires an SVG favicon and a 180 px Apple touch icon. The site instead points both icon relations to the 192×192 PNG and ships no SVG or 180×180 variant.
+
+All 17 declared claim commands passed independently. The full suite passed 10 unit tests and 56 browser runs. Live axe scans found zero violations on all public routes, offline writes and attachments survived reload, all internal links worked, the deliberate 404 rendered correctly, and live mobile Lighthouse scored 100/100/100/100. Live HTML, JavaScript, and CSS byte-match the implementation build.
+
+See `.factory/verification-5.md` for exact evidence and the disposition of every earlier finding.
 
 ## Strict review repairs
 
@@ -83,7 +93,7 @@ Live SHA-256 identity:
 | CSP was missing | Still resolved live with no violations |
 | Manifest MIME was incorrect | Still resolved live |
 | Valid 80-character titles clipped | Still resolved and covered at desktop and 390px |
-| Card actions or legal links missed 44px | Still resolved and measured in browser tests |
+| Card actions and footer legal links missed 44px | Still resolved; the separate paid-section terms link is a new finding above |
 | Demo, claims manifest, cold read, and 404 were missing | Still resolved |
 | Malformed imports replaced valid data | Still resolved; invalid input causes no confirmation and preserves all cards |
 | Expanded card caused an axe landmark issue | Still resolved; live routes report zero axe violations |
