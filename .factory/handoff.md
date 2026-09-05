@@ -1,82 +1,95 @@
-# Home Care Evidence — review handoff
-
-## Strict review 1 update — FAIL
-
-Review `home-care-evidence-review-1` completed on 2026-09-05 against candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` (last code-changing SHA `4e9525f9e2fdbccc36706ad2132933d5b433ec43`; documentation baseline `797e1505c64b0cd9c5402f6c12c30455829bbee0`). Live HTML, JavaScript, and CSS still byte-match the production build.
-
-The clean install, all 11 declared claim commands, full 10-unit/40-browser test suite, TypeScript check, and production build pass. Fresh desktop and phone review also passed the cold read, one-click sample, demo isolation/reset, normal and invalid workflows, import preservation, keyboard, zero-violation axe scans, reduced motion, offline reload, update notice, privacy/network review, response policy, and the billing rate limit at request 31.
-
-The strict verdict is nevertheless **FAIL** with 5 findings and 9 untested public claims. The declared tests omit stronger public promises, including offline attachment writes and licensed limit removal; Privacy promises a stored-license removal control that is absent; route changes do not focus/announce the new H1; the required landing-page paid section is absent; and decorative instrument-panel metaphors remain in shipped copy and outside the copy audit. Product code was not changed under the review work order. See `.factory/review-1.md` for exact evidence and remediation scope.
-
-## Historical independent verification update — PASS (superseded)
-
-Candidate `81b545d50cd1812a44fef95dbcba39ae572f477a` **PASSed** independent clean-checkout and live-deployment verification on 2026-08-28 UTC. The live HTML, JS, and CSS byte-match the candidate build. All 11 required claims passed via the isolated `/demo` flow; `npm test`, `npx tsc --noEmit`, and `npm run build` passed. Live desktop/390px, axe, keyboard, offline reload, service-worker update, privacy/network, response-policy, and billing rate-limit checks passed. The verification API first returned `429` with `Retry-After: 4` on burst request 31. That report recorded no open defects; strict review 1 above supersedes its release verdict. See `.factory/verification-4.md` for exact commands, hashes, and evidence.
+# Home Care Evidence — repair 3 handoff
 
 ## Outcome
 
-All release-blocking findings in verifier report commit `36362ed0bbab5696977883d4de5fa6edcceba105`, against candidate `28769e1220e25a318bacffc745294b7ae4f4dca8`, are repaired. Repair commit `4e9525f` is pushed to `main` and deployed at <https://home-care-evidence.sociobot.in>.
+Strict review findings are repaired and the implementation is live at <https://home-care-evidence.sociobot.in>.
 
-Deployment ID: `f9758c3d-aabe-4e38-9a29-2e91e9c89529` (Succeeded).
+- Implementation SHA: `a80ebc826aed82a0b2352c6e38b99d2ff274d83b`
+- Documentation SHA: the later commit containing this handoff; it does not change the deployed product
+- Deployment ID: `c3664506-7801-4f03-9700-1084fa364c55` (`Succeeded`)
+- Deployed artifact: the `dist/` build from implementation SHA `a80ebc8`
 
-## Repairs
+## Strict review repairs
 
-- Added `.factory/claims.json` with 11 visitor-facing claims. Each claim maps to exactly one `@claim:<id>` browser test and every declared command passed from the demo entry point.
-- Added one-click `/demo` and `?demo=1` entry points with three realistic maintenance cards, a persistent demo banner, Reset demo, and Start for real.
-- Isolated demo records in IndexedDB `demo:home-care-evidence` and demo licenses under `demo:` localStorage keys. The isolation regression seeds a real record, enters and exits demo, and confirms the real record is untouched.
-- Replaced the product-name H1 with the job-focused `Keep home repair proof ready`, named homeowners and household members, explained the first click, and added three plain facts.
-- Rebuilt archive parsing as complete nested validation for card, event, attachment, date, interval, identifier, encryption, and payload fields. Validation now finishes before confirmation or any IndexedDB write. The exact malformed-but-parseable archive regression confirms no prompt, no replacement, and survival after reload.
-- Enlarged footer links to 44×44px minimum and added a 390px measurement regression.
-- Added `.factory/demo.md`, `.factory/copy-audit.md`, canonical/Open Graph/Twitter metadata, a 1200×630 product-art social image, Apple touch metadata, `/demo` sitemap discovery, build identity, and a designed 404 response.
-- Removed the nested complementary landmark that caused the moderate axe result and retained the existing 80-character title, card-action sizing, CSP, manifest MIME, and immutable asset-cache repairs.
+- Expanded `.factory/claims.json` from 11 to 17 claims. Every public promise named by review now has one outcome-based browser test.
+- The offline claim now saves a completed-work note and receipt while disconnected, reloads offline, and reads both back.
+- The paid-limit claim now proves the free ninth card is blocked and a cached valid license can save the ninth card.
+- Added 10 MiB acceptance and 10 MiB plus one byte rejection coverage for attachments.
+- Added the 9/10-character passphrase boundary and proof that an export passphrase is neither requested nor present after reload in browser storage.
+- Encrypted archive coverage now deletes a sample card, imports the archive, and confirms its named attachment returns.
+- Added failed-import preservation, confirmed card deletion, and saved-license removal claims.
+- Added **Remove saved license**. It clears only the product-scoped license and verdict keys and leaves maintenance cards unchanged.
+- Added the exact landing offer after the scope section: Unlimited costs $29 once, removes the 8-card limit, and adds encrypted archives.
+- Replaced decorative labels such as “Evidence drawer,” “Data bay,” and “Drawer 404” with direct task labels. The expanded copy audit includes first-screen, product, empty, paid, footer, demo, data, and license copy.
+- Added History API navigation for Home, Demo, Privacy, Terms, and not-found states. Route changes focus the new H1, update the title, announce the H1, and work with back/forward. Hash-only skip-link focus remains native.
 
-## Verification
+## Clean-checkout verification
 
-Run from a clean checkout:
+A fresh clone of implementation SHA `a80ebc8` was used.
 
 ```sh
 npm ci
+# every test command in .factory/claims.json, one at a time
 npm test
 npx tsc --noEmit
 npm run build
+git diff --check
 ```
 
-Evidence recorded on August 28, 2026 UTC:
+Results:
 
-- Clean install: 60 packages installed; 0 vulnerabilities.
-- Unit/integration/config: 10 Vitest tests passed.
-- Browser: 40 Playwright runs passed across desktop Chromium and the mobile profile. The tests cover all 11 claims, full create/history persistence, malformed-import preservation, 80-character titles, 44px controls, legal/404 routes, license return, keyboard focus, reduced motion, axe, offline reload, and update notification.
-- Claim commands: all 11 exact commands in `.factory/claims.json` passed independently; each ran once in desktop Chromium and once in the mobile project.
-- Type check: `npx tsc --noEmit` passed. No separate lint tool is configured; TypeScript strict checking and `git diff --check` passed.
-- Build: `dist/index.html` exists. JavaScript is 44,387 bytes (14.08 KB gzip); CSS is 19,958 bytes (5.11 KB gzip); the largest product WebP is 20,102 bytes. There is no web-font payload.
-- Local worker URL check: title and `lang=en` present, one H1, one main, zero missing alts, zero unlabeled buttons, and zero console/page errors.
-- Local Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.0s, LCP 1.2s, TBT 10ms, CLS 0.
-- Visual inspection: full-page 1440×1000 home, 390×844 home, and 390×844 demo captures showed no horizontal overflow or clipped content. The first action remains visible on the mobile first screen.
-- Keyboard/accessibility: skip link moves focus to main; Enter opens the record dialog and focuses Card name; Escape closes and restores focus. Populated axe scan found zero serious/critical issues and no nested-complementary-landmark issue. Reduced motion yields 0.01ms transitions/animations and automatic scrolling.
-- Privacy: the complete live demo/offline flow requested only `https://home-care-evidence.sociobot.in`. No analytics, trackers, CDN fonts, or third-party scripts were observed.
-- Offline/update: a service-worker-controlled live 390px offline reload retained all three demo cards and the offline status. The update event regression displays `A fresh version is ready.` and its Reload action.
-- Package/consumer: not applicable; this remains a static `pwa-offline` product with no published package API.
+- `npm ci`: 60 packages, 0 vulnerabilities.
+- All 17 declared claim commands passed independently. Each command ran its claim in desktop Chromium and the 390px mobile project.
+- `npm test`: 10 Vitest unit/config tests and 56 Playwright runs passed.
+- TypeScript and `git diff --check`: passed.
+- Build: `dist/` produced. JavaScript is 46,640 bytes (14,477 gzip); CSS is 20,635 bytes (5,283 gzip); largest WebP is 20,102 bytes; no web-font payload.
+- Local mobile Lighthouse 13: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 1.1s, LCP 1.1s, TBT 10ms, CLS 0.
 
-## Live identity and response policy
+## Live verification
 
-The live deployment byte-matches the production build:
+- Live HTML, JavaScript, and CSS hashes match the local implementation build exactly.
+- Fresh 1440×1000 and 390×844 contexts show the job, homeowner audience, first sample action, and click result before scrolling. The phone action ends at 530 CSS pixels.
+- One click opens `/demo` with three cards and the persistent “Demo — sample data, nothing is saved” banner.
+- The water-heater sample shows Northside Plumbing, `plumber-receipt.pdf`, and Aug 18, 2027 as the next due date.
+- Deleting a sample reduced the demo to two cards. Reset restored three. Starting for real returned the unchanged real record.
+- A true offline live reload retained three cards. A note and PDF saved while offline both survived another offline reload.
+- Home, Demo, Privacy, Terms, and the designed 404 have route-specific titles, one H1, one main, zero axe violations, and no console errors. The deliberate unknown route returns HTTP 404 as expected.
+- Privacy navigation focuses and announces “Control your stored records.” Back/forward restores the route and focus.
+- Reduced motion yields 0.01ms animation and transition durations with automatic scrolling.
+- The full cold sample flow requested only the product origin. No analytics, tracker, CDN font, or third-party script request appeared.
+- Live mobile Lighthouse 13: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.9s, LCP 1.1s, TBT 0ms, CLS 0.
+- Hashed assets have one-year immutable caching. HTML revalidates. The manifest uses `application/manifest+json`. CSP, HSTS, `nosniff`, referrer, and permissions headers are present.
+- Checkout returns 303 to the hosted checkout. Product verification first returned 429 on burst request 31 with `Retry-After: 3`.
+
+Live SHA-256 identity:
 
 | File | SHA-256 |
 | --- | --- |
-| `index.html` | `9b874c8585d83b48df52dd894325ea6d8410edfd35cd2670ac563dc3be313456` |
-| `assets/index-DfIvsMKt.js` | `dfc2e571299659a3e3b0e3823a1c69d9fe68fceffb3fdf7d159007a20a281399` |
-| `assets/index-BBe8M6tt.css` | `1a72cfb5f5075e27af94a467912e5cae5857a0fcdabadb672c1f17e4f68be688` |
+| `index.html` | `51fb1ebc639d79ae7954ff29713674142bb78459793814429016c77389069254` |
+| `assets/index-B-QO5Lkd.js` | `8b89575c41406a581f9f52d77c5acb92675b776ca9e98c008a39d92e0fefc5d7` |
+| `assets/index-D_nOiQ42.css` | `b1eafec4c52f824e8dc23a89502fbe53f4fe83d80322154bc7da7e429c6d0ca9` |
 
-- Live `/`, `/demo`, `/privacy`, and `/terms` return 200. `/not-a-real-route` returns 404 with the designed not-found page.
-- Hashed assets return `public, max-age=31536000, immutable`; HTML revalidates; `sw.js` is `no-cache, no-store, must-revalidate`; the manifest is `application/manifest+json`.
-- Live responses retain HSTS, the restrictive self-only CSP with only the Sociobot verification connection, `nosniff`, strict-origin referrer policy, and the restrictive permissions policy.
-- Live worker check: no console errors; title/lang/one-H1/main/alt/button-label checks pass.
-- Live 390px demo: three sample cards, one H1/main, exact 390px document width, 44×44px Privacy and Terms links, zero serious/critical axe issues, and only same-origin requests.
-- Live Lighthouse 13 mobile: Performance 100, Accessibility 100, Best Practices 100, SEO 100; FCP 0.9s, LCP 1.0s, TBT 0ms, CLS 0.
-- Billing verification returns JSON, exact ACAO for the live origin, and `Cache-Control: no-store`. A burst first returned 429 at request 31 with `Retry-After: 3`. Checkout returns 303 to the hosted Dodo checkout; no provider is embedded.
+## Earlier finding disposition
 
-## Known limits
+| Finding | Disposition |
+| --- | --- |
+| Nine public promises lacked complete claim coverage | Resolved with six new claims and three broadened claim tests |
+| Privacy promised license removal without a control | Resolved and tested across reload |
+| Route changes did not focus or announce H1 | Resolved with History API routing, focus, live announcement, and back/forward regression |
+| Landing page omitted the paid section | Resolved with exact price, free features, paid features, checkout, restore, and terms |
+| Decorative metaphor labels and incomplete copy audit | Resolved with direct labels and an expanded audit |
+| Billing verification lacked 429/Retry-After | Still resolved; live request 31 returned 429 with `Retry-After: 3` |
+| Hashed assets lacked immutable caching | Still resolved live |
+| CSP was missing | Still resolved live with no violations |
+| Manifest MIME was incorrect | Still resolved live |
+| Valid 80-character titles clipped | Still resolved and covered at desktop and 390px |
+| Card actions or legal links missed 44px | Still resolved and measured in browser tests |
+| Demo, claims manifest, cold read, and 404 were missing | Still resolved |
+| Malformed imports replaced valid data | Still resolved; invalid input causes no confirmation and preserves all cards |
+| Expanded card caused an axe landmark issue | Still resolved; live routes report zero axe violations |
 
-- There is intentionally no account or cloud sync. Clearing browser/site data removes records unless the user exported them.
-- Encrypted archive passphrases cannot be recovered by design.
-- Very long histories can span more than one physical printed page.
-- HEIC preview depends on browser support; HEIC files still store and export.
+## Billing metadata and limits
+
+The public one-time offer is recorded in `/work/.evidence/billing-offer.json`. Core recordkeeping, attachments, printing, service history, and open exports remain free. No real purchase was made during verification, so checkout completion and a newly issued production entitlement were not exercised. The license return, daily cache, valid cached entitlement, invalid verification, license removal, and rate-limit paths were exercised.
+
+This remains a static local-first PWA. Backend tenancy, server restart persistence, and SQLite checks do not apply. Clearing browser site data can remove records unless the homeowner exported them. Archive passphrases cannot be recovered. Long histories can print beyond one physical page. HEIC preview still depends on browser support, though HEIC files remain stored and exported.
